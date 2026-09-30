@@ -966,6 +966,7 @@ function onTick(c) {
   document.querySelectorAll("[data-chk]").forEach(o => { if (o.dataset.chk === c.dataset.chk) { o.checked = c.checked; const li = o.closest("li"); if (li) li.classList.toggle("done", c.checked); } });
   refreshBurned();
 }
+function wholeHTML(p, n) { return `<div class="block"><header><span class="t">\u2713 Whole session logged</span><span class="m">${n ? n + " moves \u00b7 " : ""}${p.minutes ? p.minutes + " min" : ""}${p.kcal ? " \u00b7 " + p.kcal + " kcal" : ""}</span></header></div>`; }
 function sessionKcalEstimate(x, blocksFromPlan) {
   if (blocksFromPlan) return Math.round(blocksFromPlan.reduce((a, b) => a + b.items.reduce((c, it) => { const mins = b.tread ? b.min : b.min / b.items.length; return c + kcalFor(applySwap(it)[0], mins); }, 0), 0));
   return Math.round(sessExercises(x).reduce((a, e) => a + kcalFor(e.n, setsOf(e) * 1.25), 0));
@@ -1026,10 +1027,11 @@ function renderToday() {
     <div class="title"><div><div class="eyebrow">${DOW_LABEL[key]} · ${day.rest ? "recovery" : "day " + (["mon","tue","wed","thu","fri"].indexOf(key)+1) + " of 5"} · ${WEEK_NAME[wi]}</div><h2>${day.title}</h2></div>
       ${done ? `<span class="chip good">✓ done${done.kcal ? " \u00b7 " + done.kcal + " kcal" : ""}</span>` : `<span class="chip acc">${total} min</span>`}</div>
     <p class="focus">${day.focus}</p>
-    ${day.rest ? "" : `<div class="row between" style="margin-top:8px"><span class="eyebrow">Time today</span><div class="seg" role="group" aria-label="Session length">${DURATIONS.map(d => `<button data-dur="${d}" aria-pressed="${d===dur}">${d} min</button>`).join("")}</div></div>`}`;
+    ${day.rest || done ? "" : `<div class="row between" style="margin-top:8px"><span class="eyebrow">Time today</span><div class="seg" role="group" aria-label="Session length">${DURATIONS.map(d => `<button data-dur="${d}" aria-pressed="${d===dur}">${d} min</button>`).join("")}</div></div>`}`;
 
-  if (done && done.did) html += didHTML(done);
-  (done && done.did ? [] : shownBlocks).forEach((b, bi) => {
+  // Once logged, the list goes: only what she ticked stays, or one line when the whole session was logged.
+  if (done) html += done.did ? didHTML(done) : wholeHTML(done);
+  (done ? [] : shownBlocks).forEach((b, bi) => {
     const meta = b.tread ? b.min + " min" : b.min ? `${b.min} min · ${b.rounds} round${b.rounds > 1 ? "s" : ""}${b.again ? ", again" : ""}` : "";
     html += `<div class="block"><header><span class="t">${b.name}${b.again ? " · extra round" : ""}</span><span class="m">${meta}</span></header><ul class="ex">`;
     b.items.forEach((it, i) => {
@@ -1068,7 +1070,7 @@ function renderToday() {
       <div class="title"><div><div class="eyebrow">Also today · ${x.isRoutine ? "your own routine" : "your trainer session"}</div><h2>${x.isRoutine ? esc(x.name) : esc(fmtSessDate(x.date)) + " session"}</h2></div>
         ${pd ? `<span class="chip good">✓ done${pd.kcal ? " · " + pd.kcal + " kcal" : ""}</span>` : `<span class="chip acc">${sessExercises(x).length} moves</span>`}</div>
       <p class="focus">${sessionSummary(x)}</p>
-      ${pd && pd.did ? didHTML(pd) : sessionHTML(x, true)}
+      ${pd ? (pd.did ? didHTML(pd) : wholeHTML(pd, sessExercises(x).length)) : sessionHTML(x, true)}
       <div class="row between" style="margin-top:14px">
         <button class="btn primary" type="button" data-sdone="${x.id}" ${pd ? "disabled" : ""}>${pd ? "Session logged" : "Mark session done"}</button>
         ${pd ? `<button class="btn ghost sm" type="button" data-sundo="${x.id}">Undo</button>` : `<button class="btn ghost sm" type="button" data-unpick="${x.id}">Remove from today</button>`}
