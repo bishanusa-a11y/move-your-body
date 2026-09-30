@@ -940,7 +940,7 @@ function renderToday() {
   const S = summary(); const P = projection();
   const picked = state.picks[iso] ? sessionById(state.picks[iso]) : null;
 
-  let html = "";
+  let html = `<div class="card">${burnedHTML(false)}</div>`;   // burned figure first, session below it
   if (picked) {
     const nEx = sessExercises(picked).length;
     html += `<div class="card lift hero">
@@ -995,7 +995,6 @@ function renderToday() {
   }
   }
 
-  html += `<div class="card">${burnedHTML(false)}</div>`;
   const stepsToday = state.steps[iso]; const sg = state.settings.stepGoal || 8000;
   const wk = week.map(d => state.steps[d.iso]).filter(v => v != null);
   const wkAvg = wk.length ? Math.round(wk.reduce((a,b)=>a+b,0) / wk.length) : null;
