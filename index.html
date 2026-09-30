@@ -2772,6 +2772,8 @@ window.addEventListener("resize", () => {
 });
 connectDb(); connectSample(); checkServerVision();
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (swReloaded || !navigator.serviceWorker.controller) return; swReloaded = true; toast("Updated to the latest version"); setTimeout(() => location.reload(), 800); });
   navigator.serviceWorker.register("sw.js", { scope: "./" })
     .then(() => { swState = "registered"; return navigator.serviceWorker.ready; })
     .then(() => { swState = "running"; renderInstall(); })
