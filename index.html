@@ -1915,6 +1915,7 @@ function renderFood() {
       <label>Fat <span><small>g, optional</small></span><input type="number" id="ff-fat" inputmode="decimal" min="0" max="1000" step="0.1" placeholder="?"></label>
       <label>Cholesterol <span><small>mg, optional</small></span><input type="number" id="ff-chol" inputmode="numeric" min="0" max="5000" step="1" placeholder="?"></label>
       <label>Meal<select id="ff-meal">${MEALS.map(m => `<option ${m === defaultMeal() ? "selected" : ""}>${m}</option>`).join("")}</select></label>
+      <label class="full" style="flex-direction:row;align-items:center;gap:8px;font-size:13.5px"><input type="checkbox" id="ff-save" style="width:18px;height:18px;flex:none;accent-color:var(--accent)"> Save to my foods, so it fills itself in next time</label>
       <div class="full camerarow">
         <button class="btn primary" type="submit">Add</button>
         ${state.sample ? `<button class="btn" type="button" id="ff-ai">Estimate with Claude</button>` : ""}
@@ -1925,7 +1926,8 @@ function renderFood() {
       </div>
       <div class="full" id="ff-shot" hidden></div>
       <div class="full ai-out" id="ff-ai-out"></div>
-    </form></div>
+    </form>
+    ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${[r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul><p class="focus" style="font-size:12.5px">One portion each. Type the name in the box above and it fills itself in.</p></details>` : ""}</div>
     <div class="card" id="builderCard"><div class="row between"><h3>Make your own</h3><button class="btn sm ${builder.open ? "ghost" : "primary"}" type="button" id="bd-toggle">${builder.open ? "Close" : "Start"}</button></div>
       <p class="focus" style="margin-top:4px">Home-cooked Chinese or Western dishes, salads, smoothies: add each ingredient with its amount, like \u00bd tsp of spicy mayo or 2 tbsp of soy sauce. Cooking a pot? Say how many servings it makes and how many you ate. Save it as a recipe to reuse.</p>
       <div id="builderBody"></div></div>`;
@@ -1984,7 +1986,7 @@ function renderFood() {
   const showPicks = () => {
     const pool = foodsPool(); const hits = rankFoods(nameEl.value, 8, pool);
     picksEl.hidden = !hits.length;
-    picksEl.innerHTML = hits.map(p => `<button type="button" data-pick="${pool.indexOf(p)}">${esc(p[0])}${p[5] ? ' <em class="yours">my recipe</em>' : ""}<span>${p[1]} kcal \u00b7 ${p[2] == null ? "?" : Math.round(p[2])} g${fatOf(p) != null ? " \u00b7 " + r1(fatOf(p)) + " g fat" : ""}${p[4] != null ? " \u00b7 " + Math.round(p[4]) + " mg" : ""}</span></button>`).join("");
+    picksEl.innerHTML = hits.map(p => `<button type="button" data-pick="${pool.indexOf(p)}">${esc(p[0])}${p[5] ? ` <em class="yours">${p[7] ? "my food" : "my recipe"}</em>` : ""}<span>${p[1]} kcal \u00b7 ${p[2] == null ? "?" : Math.round(p[2])} g${fatOf(p) != null ? " \u00b7 " + r1(fatOf(p)) + " g fat" : ""}${p[4] != null ? " \u00b7 " + Math.round(p[4]) + " mg" : ""}</span></button>`).join("");
     picksEl.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => takePick(pool[+b.dataset.pick]));
   };
   let autoFilled = false;
@@ -2043,12 +2045,13 @@ function renderFood() {
       const d = await onlineSearch(term); lastOnline = d.results || [];
       const best = lastOnline.length ? bestOnline(term, lastOnline) : null;
       if (best) useOnline(best, true);
+      else { $("#ff-save").checked = true; setTimeout(() => kEl.focus(), 50); }
       const rest = lastOnline.filter(r => r !== best);
-      onlRes.innerHTML = (best ? `<p class="focus" style="margin-top:6px">Using <b>${esc(best.name)}</b>${best.brand ? " (" + esc(best.brand) + ")" : ""} from ${esc(best.src)}.${rest.length ? " Not the one? Tap another:" : ""}</p>` : `<p class="focus">Nothing found for “${esc(term)}”. Try fewer words, a brand name, or Make your own below.</p>`)
+      onlRes.innerHTML = (best ? `<p class="focus" style="margin-top:6px">Using <b>${esc(best.name)}</b>${best.brand ? " (" + esc(best.brand) + ")" : ""} from ${esc(best.src)}.${rest.length ? " Not the one? Tap another:" : ""}</p>` : `<p class="focus"><b>Nothing found online for “${esc(term)}”.</b> Add it yourself: type the calories for one portion below (protein, fat and cholesterol if you know them), and it is saved to <b>my foods</b> so next time it fills itself in.</p>`)
         + (rest.length ? `<div class="olist">${rest.map(r => onlineResultHTML(r, lastOnline.indexOf(r), true)).join("")}</div>` : "")
         + (d.notes && d.notes.length ? `<p class="focus" style="margin-top:6px;font-size:12px">${esc(d.notes.join(". "))}.</p>` : "");
       onlRes.querySelectorAll("[data-or]").forEach(b => b.onclick = () => { useOnline(lastOnline[+b.dataset.or], false); onlRes.innerHTML = ""; });
-    } catch (e) { onlRes.innerHTML = `<p class="focus">Could not search: ${esc(e.message)}</p>`; }
+    } catch (e) { onlRes.innerHTML = `<p class="focus">Could not search: ${esc(e.message)}. You can still add it yourself: type the calories below and it is saved to my foods.</p>`; $("#ff-save").checked = true; }
     finally { onl.disabled = false; }
   };
   const bt = $("#bd-toggle"); if (bt) bt.onclick = () => { builder.open = !builder.open; saveBuilder(); renderFood(); if (builder.open) setTimeout(() => { const c = $("#builderCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); };
@@ -2207,10 +2210,19 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     if (!(kcal >= 0)) kcal = 0;
     if (kcal > 20000) { toast("That is over 20,000 kcal — check the number"); return; }
     const h = lastHist && lastHist.hit === "Claude" ? lastHist : histCheck(name);
+    // Her own food: keep ONE portion of it, so next time typing the name fills everything in.
+    const saveMine = $("#ff-save").checked && kcal > 0;
+    if (saveMine) {
+      const per = v => v == null ? null : Math.round(v / qty * 10) / 10;
+      const rec = { id: uid(), name: name.slice(0, 80), kcal: Math.round(kcal / qty), prot: per(pr), chol: per(ch), fat: per(ft), custom: true, parts: [] };
+      const at = state.recipes.findIndex(r => r.name.toLowerCase() === rec.name.toLowerCase());
+      state.recipes = at >= 0 ? state.recipes.map((r, i) => i === at ? { ...rec, id: r.id } : r) : [...state.recipes, rec];
+      persist("recipes");
+    }
     const item = { id: uid(), name, kcal, protein: pr, chol: ch, fat: ft, qty, meal: $("#ff-meal").value, hist: h ? h.level : null, why: h ? h.why : null, photo: shot ? savePhoto(shot.thumb) : null, t: Date.now() };
     shot = null;
     if (!state.food[iso]) state.food[iso] = []; state.food[iso] = [...state.food[iso], item]; pruneFood(); persist("food");
-    toast(`Added ${kcal} kcal` + (h && h.level === "high" ? " \u00b7 high histamine" : "")); renderFood();
+    toast(`Added ${kcal} kcal` + (saveMine ? " \u00b7 saved to my foods" : "") + (h && h.level === "high" ? " \u00b7 high histamine" : "")); renderFood();
     const nf = $("#ff-name"); if (nf) nf.focus();
   };
   document.querySelectorAll("[data-goday]").forEach(b => b.onclick = () => { foodDate = b.dataset.goday; renderFood(); });
@@ -2234,6 +2246,7 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     $("#pp-plus").onclick = () => setServings(Number(pq.value) + (Number(pq.value) < 1 ? 0.25 : 0.5));
     document.querySelectorAll("[data-pq]").forEach(b => b.onclick = () => setServings(Number(b.dataset.pq)));
   }
+  document.querySelectorAll("[data-mydel]").forEach(b => b.onclick = () => { const r = state.recipes.find(x => x.id === b.dataset.mydel); if (!r || !confirm(`Remove \u201c${r.name}\u201d from my foods? Entries already logged stay.`)) return; state.recipes = state.recipes.filter(x => x !== r); persist("recipes"); renderFood(); });
   document.querySelectorAll("[data-fdel]").forEach(b => b.onclick = () => { state.food[iso] = foodDay(iso).filter(i => i.id !== b.dataset.fdel); if (!state.food[iso].length) delete state.food[iso]; persist("food"); renderFood(); });
 
   // cuisine guide
@@ -2261,7 +2274,7 @@ function scoreFood(n, p) {
   return sc;
 }
 // Saved recipes first, then the built-in table. Entries: [name, kcal, prot, cuisine, chol, isRecipe, fat].
-function foodsPool() { return (state.recipes || []).map(r => [r.name, r.kcal, r.prot, null, r.chol, true, r.fat == null ? null : r.fat]).concat(ALL_FOODS); }
+function foodsPool() { return (state.recipes || []).map(r => [r.name, r.kcal, r.prot, null, r.chol, true, r.fat == null ? null : r.fat, !!r.custom]).concat(ALL_FOODS); }
 function rankFoods(q, limit, pool) {
   const n = (q||"").trim().toLowerCase(); if (n.length < 2) return [];
   return (pool || foodsPool()).map(p => [p, scoreFood(n, p) + (p[5] ? 12 : 0)]).filter(x => x[1] > 0)
@@ -2500,7 +2513,7 @@ function drawBuilder(focusSearch) {
       <button class="btn primary" type="button" id="bd-add">Add to my day</button>
       <button class="btn" type="button" id="bd-save">Save as my recipe</button>
       <button class="btn ghost sm" type="button" id="bd-clear">Clear</button></div>` : ""}
-    ${(state.recipes || []).length ? `<div class="meal-h" style="margin-top:16px">Your recipes</div><ul class="food">${state.recipes.map((r, i) => `<li style="grid-template-columns:1fr auto auto auto"><div><div class="n">${esc(r.name)}</div><div class="why">${(r.parts || []).length} ingredients${r.makes > 1 ? " \u00b7 pot makes " + r.makes : ""}</div></div><div class="k num">${Math.round(r.kcal)}<small> kcal \u00b7 ${Math.round(r.prot || 0)} g${r.chol != null ? " \u00b7 " + Math.round(r.chol) + " mg" : ""}</small></div><button class="btn sm" type="button" data-redit="${i}">Edit</button><button class="del" type="button" data-rdel="${i}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul>` : ""}`;
+    ${(state.recipes || []).length ? `<div class="meal-h" style="margin-top:16px">Your recipes and foods</div><ul class="food">${state.recipes.map((r, i) => `<li style="grid-template-columns:1fr auto auto auto"><div><div class="n">${esc(r.name)}</div><div class="why">${r.custom ? "my food, one portion" : (r.parts || []).length + " ingredients"}${r.makes > 1 ? " \u00b7 pot makes " + r.makes : ""}</div></div><div class="k num">${Math.round(r.kcal)}<small> kcal \u00b7 ${Math.round(r.prot || 0)} g${r.chol != null ? " \u00b7 " + Math.round(r.chol) + " mg" : ""}</small></div>${r.custom ? "<span></span>" : `<button class="btn sm" type="button" data-redit="${i}">Edit</button>`}<button class="del" type="button" data-rdel="${i}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul>` : ""}`;
 
   const q = $("#bd-q"), sug = $("#bd-sug"), res = $("#bd-results");
   const showSug = () => {
