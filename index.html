@@ -1247,17 +1247,39 @@ function openRoutineEditor(r) {
   drawRoutineEditor();
   if (!dlg.open) dlg.showModal();
 }
+// The two lists a routine can be picked from: the weekly plan's circuits, and her trainer's sessions.
+let rtPick = { src: "plan", key: "" };
+function rtSources() {
+  if (rtPick.src === "trainer" && !mySessions().length) rtPick.src = "plan";
+  if (rtPick.src === "trainer") return mySessions().map(x => ({ key: x.id, label: fmtSessDate(x.date) + " \u00b7 " + sessExercises(x).slice(0, 2).map(e => e.n).join(", "),
+    items: sessExercises(x).map(e => ({ n: e.n, reps: fmtSets(e.s), tip: [e.w && e.w !== "BW" ? e.w : e.w === "BW" ? "bodyweight" : "", e.r].filter(Boolean).join(" \u00b7 ") })) }));
+  const out = [];
+  for (const k of ["mon", "tue", "wed", "thu", "fri"]) {
+    PLAN[k].pool.forEach((c, ci) => out.push({ key: k + "|" + ci, label: DOW_LABEL[k] + " \u00b7 " + PLAN[k].title + " \u00b7 " + c.name, items: c.items.map(it => { const [n, reps, tip] = applySwap(it); return { n, reps, tip }; }) }));
+    if (PLAN[k].tread) out.push({ key: k + "|t", label: DOW_LABEL[k] + " \u00b7 " + PLAN[k].tread.name, items: PLAN[k].tread.items.map(it => ({ n: it[0], reps: it[1], tip: it[2] })) });
+  }
+  return out;
+}
 function drawRoutineEditor(focusSearch) {
   const el = $("#rtBody"); if (!el || !rtEdit) return;
   el.innerHTML = `<div class="row between"><h3 style="margin:0">${rtEdit.id ? "Edit routine" : "New routine"}</h3><button class="x" type="button" id="rt-x" aria-label="Close">×</button></div>
     <label class="bd-l">Name<input id="rt-name" type="text" maxlength="50" placeholder="e.g. Glutes and arms, 30 min" value="${esc(rtEdit.name)}"></label>
     <label class="bd-l" style="margin-top:10px">Add a move<input id="rt-q" type="search" autocomplete="off" placeholder="squat, curl, plank, or one of your trainer's moves"></label>
     <div class="picks" id="rt-sug" hidden></div>
-    ${rtEdit.items.length ? `<ul class="rt-list">${rtEdit.items.map((it, i) => `<li>
+    ${(() => {
+      const srcs = rtSources(); const cur = srcs.find(s => s.key === rtPick.key) || srcs[0]; if (!cur) return ""; rtPick.key = cur.key;
+      const has = n => rtEdit.items.some(it => swapKey(it.n) === swapKey(n));
+      return `<div class="bd-l" style="margin-top:12px">Or pick from a list
+        <div class="seg" role="group" aria-label="Which list" style="align-self:flex-start"><button type="button" data-rtsrc="plan" aria-pressed="${rtPick.src === "plan"}">Weekly plan</button>${mySessions().length ? `<button type="button" data-rtsrc="trainer" aria-pressed="${rtPick.src === "trainer"}">Trainer sessions</button>` : ""}</div>
+        <select id="rt-from" aria-label="${rtPick.src === "trainer" ? "Trainer session" : "Plan circuit"}" style="border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;background:var(--surface);color:var(--ink);width:100%">${srcs.map(s => `<option value="${esc(s.key)}" ${s.key === cur.key ? "selected" : ""}>${esc(s.label)}</option>`).join("")}</select></div>
+        <div class="alts" style="max-height:30vh;margin-top:8px">${cur.items.map((x, i) => `<button type="button" data-rtpick="${i}" aria-pressed="${has(x.n)}" style="${has(x.n) ? "border-color:var(--good);background:var(--good-soft)" : ""}"><div class="an">${has(x.n) ? "\u2713 " : "+ "}${esc(x.n)}<span>${esc(x.reps || "")}</span></div>${x.tip ? `<div class="at">${esc(x.tip)}</div>` : ""}</button>`).join("")}</div>
+        <div class="camerarow" style="margin-top:8px"><button class="btn sm" type="button" id="rt-addall">Add all ${cur.items.length}</button><span class="focus" style="font-size:12.5px">Tap a move to add it, tap again to take it out.</span></div>`;
+    })()}
+    ${rtEdit.items.length ? `<div class="meal-h">In this routine \u00b7 ${rtEdit.items.length} move${rtEdit.items.length === 1 ? "" : "s"}</div><ul class="rt-list">${rtEdit.items.map((it, i) => `<li>
         <div class="rt-n"><span class="n" data-ex="${esc(it.n)}" data-exr="${esc(it.reps)}" data-ext="${esc(it.tip)}">${esc(it.n)}</span>${it.tip ? `<small>${esc(it.tip)}</small>` : ""}</div>
         <input class="rt-reps" data-rtreps="${i}" type="text" value="${esc(it.reps)}" placeholder="3 × 12" aria-label="Sets and reps for ${esc(it.n)}">
         <div class="rt-btns"><button type="button" data-rtup="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" data-rtdn="${i}" aria-label="Move down" ${i === rtEdit.items.length - 1 ? "disabled" : ""}>↓</button><button type="button" data-rtrm="${i}" aria-label="Remove">✕</button></div></li>`).join("")}</ul>`
-      : `<p class="focus" style="margin-top:10px">Search above and tap a move to add it. Tap a move's name any time to see pictures and a video.</p>`}
+      : `<p class="focus" style="margin-top:10px">Nothing in this routine yet. Search, or pick moves from the weekly plan or your trainer's sessions above.</p>`}
     <div class="camerarow" style="margin-top:14px"><button class="btn primary" type="button" id="rt-save">Save routine</button><button class="btn ghost" type="button" id="rt-cancel">Cancel</button></div>`;
   const dlg = $("#rtDlg");
   $("#rt-x").onclick = $("#rt-cancel").onclick = () => dlg.close();
@@ -1273,6 +1295,18 @@ function drawRoutineEditor(focusSearch) {
     sug.innerHTML = hits.map((x, i) => `<button type="button" data-rtadd="${i}">${esc(x.n)}${x.src === "trainer" ? ' <em class="yours">yours</em>' : ""}<span>${esc(x.reps)}</span></button>`).join("");
     sug.querySelectorAll("[data-rtadd]").forEach(b => b.onclick = () => { const x = hits[+b.dataset.rtadd]; rtEdit.items.push({ n: x.n, reps: x.reps, tip: x.tip }); drawRoutineEditor(true); });
   };
+  // Picking from a list redraws the sheet; keep the scroll where it was so the list does not jump away.
+  const redrawKeep = () => { const d = $("#rtDlg"), y = d.scrollTop, ly = (el.querySelector(".alts") || {}).scrollTop || 0; drawRoutineEditor(); d.scrollTop = y; const l = el.querySelector(".alts"); if (l) l.scrollTop = ly; };
+  el.querySelectorAll("[data-rtsrc]").forEach(b => b.onclick = () => { rtPick = { src: b.dataset.rtsrc, key: "" }; redrawKeep(); });
+  const from = $("#rt-from"); if (from) from.onchange = () => { rtPick.key = from.value; redrawKeep(); };
+  const curSrc = () => rtSources().find(s => s.key === rtPick.key);
+  el.querySelectorAll("[data-rtpick]").forEach(b => b.onclick = () => {
+    const x = (curSrc() || { items: [] }).items[+b.dataset.rtpick]; if (!x) return;
+    const at = rtEdit.items.findIndex(it => swapKey(it.n) === swapKey(x.n));
+    if (at >= 0) rtEdit.items.splice(at, 1); else rtEdit.items.push({ n: x.n, reps: x.reps || "", tip: x.tip || "" });
+    redrawKeep();
+  });
+  const aall = $("#rt-addall"); if (aall) aall.onclick = () => { for (const x of (curSrc() || { items: [] }).items) if (!rtEdit.items.some(it => swapKey(it.n) === swapKey(x.n))) rtEdit.items.push({ n: x.n, reps: x.reps || "", tip: x.tip || "" }); redrawKeep(); };
   el.querySelectorAll("[data-rtreps]").forEach(inp => inp.oninput = () => { rtEdit.items[+inp.dataset.rtreps].reps = inp.value; });
   const move = (i, d) => { const a = rtEdit.items; [a[i], a[i + d]] = [a[i + d], a[i]]; drawRoutineEditor(); };
   el.querySelectorAll("[data-rtup]").forEach(b => b.onclick = () => move(+b.dataset.rtup, -1));
