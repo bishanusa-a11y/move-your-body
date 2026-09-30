@@ -935,7 +935,7 @@ function burnedToday() {
   const seen = new Set();
   for (const u of todaysUnits()) {
     seen.add(u.id);
-    if (parts[u.id]) { const k = parts[u.id].kcal || 0; workout += k; lines.push({ label: parts[u.id].title || u.label, kcal: Math.round(k), done: true }); continue; }
+    if (parts[u.id]) { const k = parts[u.id].kcal || 0; workout += k; lines.push({ label: (parts[u.id].title || u.label) + (parts[u.id].did ? " (" + parts[u.id].did.length + " of " + parts[u.id].of + " moves)" : ""), kcal: Math.round(k), done: true }); continue; }
     const ticked = u.moves.filter(m => checks.on[m.key]);
     if (ticked.length) { const k = ticked.reduce((a, m) => a + m.kcal, 0); workout += k; moves += ticked.length; lines.push({ label: u.label, kcal: Math.round(k), done: false, n: ticked.length, of: u.moves.length }); }
   }
@@ -943,6 +943,25 @@ function burnedToday() {
   const steps = state.steps[iso] || 0;
   const walking = steps * bodyKg() * 0.00038;                          // about 0.5 kcal per kg per km, 1300 steps per km
   return { workout: Math.round(workout), moves, walking: Math.round(walking), steps, total: Math.round(workout + walking), lines, doneTitle: null };
+}
+// Marking a session done after ticking only some of its moves logs just those; the unticked ones drop out of today's record.
+// Nothing ticked (or everything) means the whole session, as before.
+function doneInfo(unitId, whole) {
+  const u = todaysUnits().find(x => x.id === unitId); if (!u) return whole;
+  const t = u.moves.filter(mv => checks.on[mv.key]);
+  if (!t.length || t.length === u.moves.length) return whole;
+  return { title: whole.title, kcal: Math.round(t.reduce((a, mv) => a + mv.kcal, 0)), minutes: Math.max(1, Math.round(t.reduce((a, mv) => a + mv.mins, 0))), did: t.map(mv => mv.name), of: u.moves.length };
+}
+function didHTML(p) {
+  return `<div class="block"><header><span class="t">What you did</span><span class="m">${p.did.length} of ${p.of} moves \u00b7 about ${p.minutes} min \u00b7 ${p.kcal} kcal</span></header>
+    <ul class="ex">${p.did.map(n => `<li style="grid-template-columns:22px 1fr"><span style="color:var(--good);font-weight:800">\u2713</span><div class="n" data-ex="${esc(n)}">${esc(n)}</div></li>`).join("")}</ul>
+    <p class="focus" style="font-size:12.5px;margin-top:6px">The moves you did not tick were left out of today's workout. Undo brings the full list back.</p></div>`;
+}
+// One tick, every copy of it: the same move shows on Today and on Plan, so both boxes change together.
+function onTick(c) {
+  ensureChecks(); checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks);
+  document.querySelectorAll("[data-chk]").forEach(o => { if (o.dataset.chk === c.dataset.chk) { o.checked = c.checked; const li = o.closest("li"); if (li) li.classList.toggle("done", c.checked); } });
+  refreshBurned();
 }
 function sessionKcalEstimate(x, blocksFromPlan) {
   if (blocksFromPlan) return Math.round(blocksFromPlan.reduce((a, b) => a + b.items.reduce((c, it) => { const mins = b.tread ? b.min : b.min / b.items.length; return c + kcalFor(applySwap(it)[0], mins); }, 0), 0));
@@ -1007,7 +1026,8 @@ function renderToday() {
     ${day.kit ? `<p class="focus"><b>Kit:</b> ${day.kit}</p>` : ""}
     ${day.rest ? "" : `<div class="row between" style="margin-top:8px"><span class="eyebrow">Time today</span><div class="seg" role="group" aria-label="Session length">${DURATIONS.map(d => `<button data-dur="${d}" aria-pressed="${d===dur}">${d} min</button>`).join("")}</div></div>`}`;
 
-  shownBlocks.forEach((b, bi) => {
+  if (done && done.did) html += didHTML(done);
+  (done && done.did ? [] : shownBlocks).forEach((b, bi) => {
     const meta = b.tread ? b.min + " min" : b.min ? `${b.min} min · ${b.rounds} round${b.rounds > 1 ? "s" : ""}${b.again ? ", again" : ""}` : "";
     html += `<div class="block"><header><span class="t">${b.name}${b.again ? " · extra round" : ""}</span><span class="m">${meta}</span></header><ul class="ex">`;
     b.items.forEach((it, i) => {
@@ -1034,7 +1054,7 @@ function renderToday() {
   }
   html += `<div class="row between" style="margin-top:14px">
       <button class="btn primary" id="markDone" ${done ? "disabled" : ""}>${done ? "Session logged" : "Mark session done"}</button>
-      ${done ? `<button class="btn ghost sm" id="undoDone">Undo</button>` : `<span class="focus">Logs ${dur} min for today</span>`}
+      ${done ? `<button class="btn ghost sm" id="undoDone">Undo</button>` : `<span class="focus" style="font-size:12.5px;max-width:55%">Logs the moves you ticked, or the whole ${dur} min if none are ticked</span>`}
     </div></div>`;
   // Her own sessions added to today: each one is its own card, ticked and logged separately.
   for (const x of added) {
@@ -1043,7 +1063,7 @@ function renderToday() {
       <div class="title"><div><div class="eyebrow">Also today · ${x.isRoutine ? "your own routine" : "your trainer session"}</div><h2>${x.isRoutine ? esc(x.name) : esc(fmtSessDate(x.date)) + " session"}</h2></div>
         ${pd ? `<span class="chip good">✓ done${pd.kcal ? " · " + pd.kcal + " kcal" : ""}</span>` : `<span class="chip acc">${sessExercises(x).length} moves</span>`}</div>
       <p class="focus">${sessionSummary(x)}. Moves grouped together are done back to back, then rest.</p>
-      ${sessionHTML(x, true)}
+      ${pd && pd.did ? didHTML(pd) : sessionHTML(x, true)}
       <div class="row between" style="margin-top:14px">
         <button class="btn primary" type="button" data-sdone="${x.id}" ${pd ? "disabled" : ""}>${pd ? "Session logged" : "Mark session done"}</button>
         ${pd ? `<button class="btn ghost sm" type="button" data-sundo="${x.id}">Undo</button>` : `<button class="btn ghost sm" type="button" data-unpick="${x.id}">Remove from today</button>`}
@@ -1079,12 +1099,12 @@ function renderToday() {
 
   document.querySelectorAll("[data-dur]").forEach(b => b.onclick = () => { state.duration = +b.dataset.dur; lsSet("sculpt.duration", state.duration); renderToday(); });
   document.querySelectorAll("[data-swap]").forEach(b => b.onclick = () => openSwap(b.dataset.swap));
-  document.querySelectorAll("[data-chk]").forEach(c => c.onchange = () => { ensureChecks(); checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks); c.closest("li").classList.toggle("done", c.checked); refreshBurned(); });
+  document.querySelectorAll("[data-chk]").forEach(c => c.onchange = () => onTick(c));
   const md = $("#markDone"); if (md && !done) md.onclick = () => {
-    const kcal = sessionKcalEstimate(null, shownBlocks);
-    setPart(iso, "plan", { title: day.title, kcal, minutes: day.rest ? 30 : dur });
-    toast("Nice work \u2014 " + day.title + " logged, about " + kcal + " kcal"); renderAll(); };
-  document.querySelectorAll("#screen-today [data-sdone]").forEach(b => b.onclick = () => { const x = sessionById(b.dataset.sdone); if (!x) return; const kcal = sessionKcalEstimate(x); setPart(iso, x.id, { title: sessionTitle(x), kcal, minutes: Math.round(sessExercises(x).reduce((a, e) => a + setsOf(e) * 1.25, 0)) }); toast("Logged " + sessionTitle(x) + ", about " + kcal + " kcal"); renderAll(); });
+    const info = doneInfo("plan", { title: day.title, kcal: sessionKcalEstimate(null, shownBlocks), minutes: day.rest ? 30 : dur });
+    setPart(iso, "plan", info);
+    toast("Nice work \u2014 " + (info.did ? info.did.length + " of " + info.of + " moves" : day.title) + " logged, about " + info.kcal + " kcal"); renderAll(); };
+  document.querySelectorAll("#screen-today [data-sdone]").forEach(b => b.onclick = () => { const x = sessionById(b.dataset.sdone); if (!x) return; const info = doneInfo(x.id, { title: sessionTitle(x), kcal: sessionKcalEstimate(x), minutes: Math.round(sessExercises(x).reduce((a, e) => a + setsOf(e) * 1.25, 0)) }); setPart(iso, x.id, info); toast("Logged " + (info.did ? info.did.length + " of " + info.of + " moves from " : "") + sessionTitle(x) + ", about " + info.kcal + " kcal"); renderAll(); });
   document.querySelectorAll("#screen-today [data-sundo]").forEach(b => b.onclick = () => { clearPart(iso, b.dataset.sundo); renderAll(); });
   document.querySelectorAll("#screen-today [data-unpick]").forEach(b => b.onclick = () => { state.picks[iso] = picksFor(iso).filter(id => id !== b.dataset.unpick); if (!state.picks[iso].length) delete state.picks[iso]; persist("picks"); renderAll(); });
   document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => pickSession(b.dataset.pick));
@@ -1374,10 +1394,10 @@ function renderPlan() {
   $("#screen-plan").innerHTML = html;
   document.querySelectorAll("[data-wk]").forEach(b => b.onclick = () => { state.planWeek = +b.dataset.wk; renderPlan(); });
   document.querySelectorAll("#screen-plan [data-pick]").forEach(b => b.onclick = () => pickSession(b.dataset.pick));
-  document.querySelectorAll("#screen-plan [data-chk]").forEach(c => c.onchange = () => { ensureChecks(); checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks); c.closest("li").classList.toggle("done", c.checked); refreshBurned(); });
+  document.querySelectorAll("#screen-plan [data-chk]").forEach(c => c.onchange = () => onTick(c));
   document.querySelectorAll("#screen-plan [data-swap]").forEach(b => b.onclick = () => openSwap(b.dataset.swap));
-  const pmd = $("#plan-mdone"); if (pmd) pmd.onclick = () => { const kcal = sessionKcalEstimate(null, buildSession(key, state.duration || 30, wi).blocks); setPart(isoP, "plan", { title: PLAN[key].title, kcal, minutes: state.duration || 30 }); toast("Logged " + PLAN[key].title + ", about " + kcal + " kcal"); renderAll(); };
-  document.querySelectorAll("[data-mdone]").forEach(b => b.onclick = () => { const x = sessionById(b.dataset.mdone); if (!x) return; const kcal = sessionKcalEstimate(x); const cur = picksFor(isoP); if (!cur.includes(x.id)) { state.picks[isoP] = [...cur, x.id]; persist("picks"); } setPart(isoP, x.id, { title: sessionTitle(x), kcal, minutes: Math.round(sessExercises(x).reduce((a, e) => a + setsOf(e) * 1.25, 0)) }); toast("Logged " + sessionTitle(x) + ", about " + kcal + " kcal"); renderAll(); });
+  const pmd = $("#plan-mdone"); if (pmd) pmd.onclick = () => { const info = doneInfo("plan", { title: PLAN[key].title, kcal: sessionKcalEstimate(null, buildSession(key, state.duration || 30, wi).blocks), minutes: state.duration || 30 }); setPart(isoP, "plan", info); toast("Logged " + (info.did ? info.did.length + " of " + info.of + " moves, " : "") + PLAN[key].title + ", about " + info.kcal + " kcal"); renderAll(); };
+  document.querySelectorAll("[data-mdone]").forEach(b => b.onclick = () => { const x = sessionById(b.dataset.mdone); if (!x) return; const kcal = sessionKcalEstimate(x); const cur = picksFor(isoP); if (!cur.includes(x.id)) { state.picks[isoP] = [...cur, x.id]; persist("picks"); } const info = doneInfo(x.id, { title: sessionTitle(x), kcal, minutes: Math.round(sessExercises(x).reduce((a, e) => a + setsOf(e) * 1.25, 0)) }); setPart(isoP, x.id, info); toast("Logged " + (info.did ? info.did.length + " of " + info.of + " moves from " : "") + sessionTitle(x) + ", about " + info.kcal + " kcal"); renderAll(); });
   const rn = $("#rt-new"); if (rn) rn.onclick = () => openRoutineEditor(null);
   const rct = $("#rt-copy-today"); if (rct) rct.onclick = () => {
     let k = DOW[new Date().getDay()]; if (PLAN[k].rest) k = "mon";
