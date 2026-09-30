@@ -303,6 +303,9 @@ details.day .sum-d{font-size:13px;color:var(--ink2)}
 details.day .arrow{color:var(--muted);transition:transform .2s}
 details.day[open] .arrow{transform:rotate(180deg)}
 details.day .body{padding:0 16px 16px;border-top:1px solid var(--line)}
+details.day details.cz summary{display:flex;padding:10px 0;grid-template-columns:none}
+details.day[open] details.cz:not([open]) .arrow{transform:none}
+details.cz[open]>summary .arrow{transform:rotate(180deg)}
 .vids{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .vids a{display:flex;align-items:center;justify-content:space-between;gap:8px;text-decoration:none;color:var(--ink);background:var(--surface2);border-radius:10px;padding:9px 12px;font-size:13.5px}
 .vids a:hover{background:var(--accent-soft)}
@@ -955,7 +958,7 @@ function doneInfo(unitId, whole) {
 function didHTML(p) {
   return `<div class="block"><header><span class="t">What you did</span><span class="m">${p.did.length} of ${p.of} moves \u00b7 about ${p.minutes} min \u00b7 ${p.kcal} kcal</span></header>
     <ul class="ex">${p.did.map(n => `<li style="grid-template-columns:22px 1fr"><span style="color:var(--good);font-weight:800">\u2713</span><div class="n" data-ex="${esc(n)}">${esc(n)}</div></li>`).join("")}</ul>
-    <p class="focus" style="font-size:12.5px;margin-top:6px">The moves you did not tick were left out of today's workout. Undo brings the full list back.</p></div>`;
+    </div>`;
 }
 // One tick, every copy of it: the same move shows on Today and on Plan, so both boxes change together.
 function onTick(c) {
@@ -975,7 +978,7 @@ function burnedHTML(compact) {
       <div><span>Workouts</span><b class="num">${B.workout.toLocaleString()} kcal</b><span style="text-transform:none;letter-spacing:0;font-weight:500">${B.lines.length ? B.lines.length + " session" + (B.lines.length === 1 ? "" : "s") + " counted" : "tick moves as you finish them"}</span></div>
       <div><span>Walking</span><b class="num">${B.walking.toLocaleString()} kcal</b><span style="text-transform:none;letter-spacing:0;font-weight:500">${B.steps ? B.steps.toLocaleString() + " steps" : "log your steps below"}</span></div></div>
     ${B.lines.length ? `<ul class="burnlines">${B.lines.map(l => `<li><span>${l.done ? "\u2713 " : ""}${esc(l.label)}${l.done ? "" : ` <small>${l.n} of ${l.of} moves ticked</small>`}</span><b class="num">${l.kcal.toLocaleString()} kcal</b></li>`).join("")}</ul>` : ""}
-    <p class="focus" style="margin-top:8px;font-size:12.5px">Estimates from typical effort for each move and your weight. Doing the plan and your own sessions on the same day adds them together. Your daily calorie target already assumes five sessions a week, so treat this as a progress figure, not extra food to eat back.</p></div>`;
+    </div>`;
 }
 function refreshBurned() { document.querySelectorAll("[data-burned]").forEach(el => { el.outerHTML = burnedHTML(el.dataset.burned === "chip"); }); }
 function weekSessions() {
@@ -1017,13 +1020,12 @@ function renderToday() {
   const wkAvg = wk.length ? Math.round(wk.reduce((a,b)=>a+b,0) / wk.length) : null;
   html += `<div class="card"><div class="row between"><h3>Steps today</h3>${stepsToday != null ? `<span class="chip ${stepsToday >= sg ? "good" : ""} num">${stepsToday.toLocaleString()} / ${sg.toLocaleString()}</span>` : `<span class="chip">goal ${sg.toLocaleString()}</span>`}</div>
     <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, (stepsToday||0) / sg * 100)}%"></i></div>
-    <form class="form" id="stepsForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>From the Fitbit app on your Pixel <input type="number" id="f-steps" inputmode="numeric" min="0" max="100000" step="1" placeholder="${stepsToday != null ? stepsToday : "e.g. 8500"}"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form>
-    <p class="focus" style="margin-top:8px">${wkAvg != null ? `This week's average: <b class="num">${wkAvg.toLocaleString()}</b> steps a day.` : "Open Fitbit, read today's steps, type them here. Takes ten seconds and the trend shows on the Progress screen."}</p></div>`;
+    <form class="form" id="stepsForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>Steps today <input type="number" id="f-steps" inputmode="numeric" min="0" max="100000" step="1" placeholder="${stepsToday != null ? stepsToday : "e.g. 8500"}"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form>
+    <p class="focus" style="margin-top:8px">${wkAvg != null ? `This week's average: <b class="num">${wkAvg.toLocaleString()}</b> steps a day.` : ""}</p></div>`;
   html += `<div class="card lift hero">
     <div class="title"><div><div class="eyebrow">${DOW_LABEL[key]} · ${day.rest ? "recovery" : "day " + (["mon","tue","wed","thu","fri"].indexOf(key)+1) + " of 5"} · ${WEEK_NAME[wi]}</div><h2>${day.title}</h2></div>
       ${done ? `<span class="chip good">✓ done${done.kcal ? " \u00b7 " + done.kcal + " kcal" : ""}</span>` : `<span class="chip acc">${total} min</span>`}</div>
     <p class="focus">${day.focus}</p>
-    ${day.kit ? `<p class="focus"><b>Kit:</b> ${day.kit}</p>` : ""}
     ${day.rest ? "" : `<div class="row between" style="margin-top:8px"><span class="eyebrow">Time today</span><div class="seg" role="group" aria-label="Session length">${DURATIONS.map(d => `<button data-dur="${d}" aria-pressed="${d===dur}">${d} min</button>`).join("")}</div></div>`}`;
 
   if (done && done.did) html += didHTML(done);
@@ -1033,12 +1035,14 @@ function renderToday() {
     b.items.forEach((it, i) => {
       const id = bi + "|" + b.name + "|" + i; const on = !!checks.on[id];
       const [nm, reps, tip, isSwap] = applySwap(it);
-      html += `<li class="${on?"done":""} ${isSwap?"swapped":""}"><input type="checkbox" id="chk-${key}-${bi}-${i}" data-chk="${id}" ${on?"checked":""} aria-label="Done: ${esc(nm)}"><div><div class="n" data-ex="${esc(nm)}" data-exr="${esc(reps)}" data-ext="${esc(tip || "")}" data-exsw="${esc(it[0])}">${esc(nm)}</div>${tip ? `<div class="tip">${esc(tip)}</div>` : ""}</div><div class="r">${esc(reps)}</div><button class="swap" data-swap="${esc(it[0])}" title="Swap this exercise" aria-label="Swap ${esc(nm)}"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></button></li>`;
+      html += `<li class="${on?"done":""} ${isSwap?"swapped":""}"><input type="checkbox" id="chk-${key}-${bi}-${i}" data-chk="${id}" ${on?"checked":""} aria-label="Done: ${esc(nm)}"><div><div class="n" data-ex="${esc(nm)}" data-exr="${esc(reps)}" data-ext="${esc(tip || "")}" data-exsw="${esc(it[0])}">${esc(nm)}</div></div><div class="r">${esc(reps)}</div><button class="swap" data-swap="${esc(it[0])}" title="Swap this exercise" aria-label="Swap ${esc(nm)}"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></button></li>`;
     });
     html += `</ul></div>`;
   });
   const sv = savedFor(key, iso, state.savedOffset || 0, 3);
-  if (sv.length) html += `<div class="block"><header><span class="t">From your Instagram saves</span><span class="m">3 of ${savedMatches(key).length} that fit today</span></header>
+  const hasVids = sv.length || day.videos.length;
+  if (hasVids) html += `<details class="cz" id="vidDrawer" style="margin-top:12px" ${state.vidOpen ? "open" : ""}><summary>Videos for today<span class="arrow" style="color:var(--muted)">\u25be</span></summary>`;
+  if (sv.length) html += `<div class="block" style="border-top:0;margin-top:0;padding-top:0"><header><span class="t">Your Instagram saves</span><span class="m">${savedMatches(key).length} fit today</span></header>
       <div class="vids">${savedLinks(sv)}</div>
       ${savedMatches(key).length > 3 ? `<button class="btn ghost sm" type="button" id="svNext" style="margin-top:8px">Show others</button>` : ""}</div>`;
   if (day.videos.length) {
@@ -1046,15 +1050,16 @@ function renderToday() {
     const picks = fits.length ? fits.slice(0, 3) : day.videos.slice(0, 2);
     const spare = fits.length ? dur - fits[0][3] : 0;
     const tread = day.tread;
-    html += `<div class="block"><header><span class="t">Or follow a video instead</span><span class="m">picked for ${dur} min</span></header>
+    html += `<div class="block"><header><span class="t">YouTube</span><span class="m">${dur} min</span></header>
       <div class="vids">${picks.map((v,i) => `<a href="${v[2]}" target="_blank" rel="noopener">${i===0 && fits.length ? "★ " : ""}${v[0]}<span class="who">${v[3]} min · ${v[1]} ↗</span></a>`).join("")}</div>
-      ${!day.rest && tread && spare >= 10 ? `<p class="focus" style="margin-top:8px">Best match leaves ${spare} min: add ${tread.items[0][0].toLowerCase()} ${tread.items[0][1]} on the treadmill.</p>` : ""}
-      ${!fits.length ? `<p class="focus" style="margin-top:8px">Nothing short enough for ${dur} min today, so do the written set above.</p>` : ""}
+      
+      
     </div>`;
   }
+  if (hasVids) html += `</details>`;
   html += `<div class="row between" style="margin-top:14px">
       <button class="btn primary" id="markDone" ${done ? "disabled" : ""}>${done ? "Session logged" : "Mark session done"}</button>
-      ${done ? `<button class="btn ghost sm" id="undoDone">Undo</button>` : `<span class="focus" style="font-size:12.5px;max-width:55%">Logs the moves you ticked, or the whole ${dur} min if none are ticked</span>`}
+      ${done ? `<button class="btn ghost sm" id="undoDone">Undo</button>` : ""}
     </div></div>`;
   // Her own sessions added to today: each one is its own card, ticked and logged separately.
   for (const x of added) {
@@ -1062,7 +1067,7 @@ function renderToday() {
     html += `<div class="card lift hero">
       <div class="title"><div><div class="eyebrow">Also today · ${x.isRoutine ? "your own routine" : "your trainer session"}</div><h2>${x.isRoutine ? esc(x.name) : esc(fmtSessDate(x.date)) + " session"}</h2></div>
         ${pd ? `<span class="chip good">✓ done${pd.kcal ? " · " + pd.kcal + " kcal" : ""}</span>` : `<span class="chip acc">${sessExercises(x).length} moves</span>`}</div>
-      <p class="focus">${sessionSummary(x)}. Moves grouped together are done back to back, then rest.</p>
+      <p class="focus">${sessionSummary(x)}</p>
       ${pd && pd.did ? didHTML(pd) : sessionHTML(x, true)}
       <div class="row between" style="margin-top:14px">
         <button class="btn primary" type="button" data-sdone="${x.id}" ${pd ? "disabled" : ""}>${pd ? "Session logged" : "Mark session done"}</button>
@@ -1074,9 +1079,9 @@ function renderToday() {
   let sug = state.mywork.length ? suggestedSession(state.sugOffset || 0) : null;
   for (let t = 1; sug && addedIds.has(sug.id) && t <= state.mywork.length; t++) sug = suggestedSession((state.sugOffset || 0) + t);
   if (sug && !addedIds.has(sug.id)) {
-    html += `<div class="card"><div class="row between"><h3>Add one of your own sessions</h3><span class="chip">${state.mywork.length} saved</span></div>
-      <p class="focus" style="margin-top:4px">Doing your trainer's work as well as the plan? Add it and it sits under the plan, with its own ticks, and its calories are added to today. This week's pick: <b>${esc(fmtSessDate(sug.date))}</b> · ${sessionSummary(sug)}</p>
-      <p class="focus" style="margin-top:6px;font-size:13px">${sessExercises(sug).slice(0, 5).map(e => esc(e.n)).join(", ")}${sessExercises(sug).length > 5 ? "…" : ""}</p>
+    html += `<div class="card"><div class="row between"><h3>Add a trainer session</h3><span class="chip">${state.mywork.length} saved</span></div>
+      <p class="focus" style="margin-top:4px"><b>${esc(fmtSessDate(sug.date))}</b> · ${sessionSummary(sug)}</p>
+      
       <div class="camerarow" style="margin-top:10px"><button class="btn primary sm" data-pick="${sug.id}">Add to today</button><button class="btn sm" id="sugNext">Show another</button><button class="btn ghost sm" id="sugAll">See all ${state.mywork.length}</button></div></div>`;
   }
 
@@ -1088,13 +1093,6 @@ function renderToday() {
     <div class="week" style="margin-top:10px">${week.map(d => `<span class="${d.done?"done":""} ${d.today?"today":""} ${PLAN[d.key].rest?"rest":""}" title="${DOW_LABEL[d.key]}${d.done?" · done":""}">${DOW_LABEL[d.key][0]}</span>`).join("")}</div>
     <p class="focus" style="margin-top:10px">${P && P.reached ? "You are in your goal range — this is maintenance mode now: keep 4–5 sessions a week and weigh in weekly." : P ? `At ${P.basis}, you reach ${state.settings.targetHigh} kg around <b>${P.date.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"})}</b>.` : "Log your first weigh-in to see a projected goal date."}</p></div>`;
 
-  html += `<div class="card"><h3>How this plan works for your goal</h3>
-    <div class="guide" style="margin-top:10px">
-      <div><b>No bulk</b>2–5 kg dumbbells, 12–20 reps, short rests. Muscle definition without size — visible bulk needs heavy loads and a calorie surplus you are not in.</div>
-      <div><b>Inches</b>Toning shows once body fat drops: 1–2 in off arm, thigh and lower belly typically follows a 3–5 kg loss. Measure every Monday morning.</div>
-      <div><b>Treadmill</b>Never more than 3 km. Incline walking on lower-body days, run/walk intervals midweek, steady walking on core day.</div>
-      <div><b>Pace</b>0.25–0.5 kg a week protects muscle. From 55 kg to 50.5 kg is about 10–18 weeks. Keep protein at roughly 1.6 g per kg of body weight.</div>
-    </div></div>`;
   $("#screen-today").innerHTML = html;
 
   document.querySelectorAll("[data-dur]").forEach(b => b.onclick = () => { state.duration = +b.dataset.dur; lsSet("sculpt.duration", state.duration); renderToday(); });
@@ -1108,6 +1106,7 @@ function renderToday() {
   document.querySelectorAll("#screen-today [data-sundo]").forEach(b => b.onclick = () => { clearPart(iso, b.dataset.sundo); renderAll(); });
   document.querySelectorAll("#screen-today [data-unpick]").forEach(b => b.onclick = () => { state.picks[iso] = picksFor(iso).filter(id => id !== b.dataset.unpick); if (!state.picks[iso].length) delete state.picks[iso]; persist("picks"); renderAll(); });
   document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => pickSession(b.dataset.pick));
+  const vd = $("#vidDrawer"); if (vd) vd.ontoggle = () => { state.vidOpen = vd.open; };
   const svn = $("#svNext"); if (svn) svn.onclick = () => { state.savedOffset = (state.savedOffset || 0) + 1; renderToday(); };
   const sn = $("#sugNext"); if (sn) sn.onclick = () => { state.sugOffset = (state.sugOffset || 0) + 1; renderToday(); };
   const sa = $("#sugAll"); if (sa) sa.onclick = () => { showTab("plan"); setTimeout(() => { const t = $("#mySessions"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80); };
@@ -1273,13 +1272,13 @@ function drawRoutineEditor(focusSearch) {
         <div class="seg" role="group" aria-label="Which list" style="align-self:flex-start"><button type="button" data-rtsrc="plan" aria-pressed="${rtPick.src === "plan"}">Weekly plan</button>${mySessions().length ? `<button type="button" data-rtsrc="trainer" aria-pressed="${rtPick.src === "trainer"}">Trainer sessions</button>` : ""}</div>
         <select id="rt-from" aria-label="${rtPick.src === "trainer" ? "Trainer session" : "Plan circuit"}" style="border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:14px;background:var(--surface);color:var(--ink);width:100%">${srcs.map(s => `<option value="${esc(s.key)}" ${s.key === cur.key ? "selected" : ""}>${esc(s.label)}</option>`).join("")}</select></div>
         <div class="alts" style="max-height:30vh;margin-top:8px">${cur.items.map((x, i) => `<button type="button" data-rtpick="${i}" aria-pressed="${has(x.n)}" style="${has(x.n) ? "border-color:var(--good);background:var(--good-soft)" : ""}"><div class="an">${has(x.n) ? "\u2713 " : "+ "}${esc(x.n)}<span>${esc(x.reps || "")}</span></div>${x.tip ? `<div class="at">${esc(x.tip)}</div>` : ""}</button>`).join("")}</div>
-        <div class="camerarow" style="margin-top:8px"><button class="btn sm" type="button" id="rt-addall">Add all ${cur.items.length}</button><span class="focus" style="font-size:12.5px">Tap a move to add it, tap again to take it out.</span></div>`;
+        <div class="camerarow" style="margin-top:8px"><button class="btn sm" type="button" id="rt-addall">Add all ${cur.items.length}</button></div>`;
     })()}
     ${rtEdit.items.length ? `<div class="meal-h">In this routine \u00b7 ${rtEdit.items.length} move${rtEdit.items.length === 1 ? "" : "s"}</div><ul class="rt-list">${rtEdit.items.map((it, i) => `<li>
         <div class="rt-n"><span class="n" data-ex="${esc(it.n)}" data-exr="${esc(it.reps)}" data-ext="${esc(it.tip)}">${esc(it.n)}</span>${it.tip ? `<small>${esc(it.tip)}</small>` : ""}</div>
         <input class="rt-reps" data-rtreps="${i}" type="text" value="${esc(it.reps)}" placeholder="3 × 12" aria-label="Sets and reps for ${esc(it.n)}">
         <div class="rt-btns"><button type="button" data-rtup="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" data-rtdn="${i}" aria-label="Move down" ${i === rtEdit.items.length - 1 ? "disabled" : ""}>↓</button><button type="button" data-rtrm="${i}" aria-label="Remove">✕</button></div></li>`).join("")}</ul>`
-      : `<p class="focus" style="margin-top:10px">Nothing in this routine yet. Search, or pick moves from the weekly plan or your trainer's sessions above.</p>`}
+      : `<p class="focus" style="margin-top:10px">No moves yet.</p>`}
     <div class="camerarow" style="margin-top:14px"><button class="btn primary" type="button" id="rt-save">Save routine</button><button class="btn ghost" type="button" id="rt-cancel">Cancel</button></div>`;
   const dlg = $("#rtDlg");
   $("#rt-x").onclick = $("#rt-cancel").onclick = () => dlg.close();
@@ -1387,10 +1386,9 @@ function renderPlan() {
   ensureChecks();
   const isoP = todayISO(), partsP = dayParts(isoP), doneP = partsP.plan || null;
   let html = `<div class="card"><div class="row between"><h2>Your 5-day week</h2><div class="row">${burnedHTML(true)}<span class="chip acc">${WEEK_NAME[wi]}</span></div></div>
-    <p class="focus" style="margin-top:6px">Each day draws two circuits from a pool of four, and the pair changes every week on a four-week rotation, so you do not repeat the same session for a month. No warm-up or cool-down blocks: take the first round of the first circuit easy instead.</p>
-    <div class="timing"><div><b>15 min</b>One circuit, 2 rounds</div><div><b>30 min</b>Two circuits, 2 rounds each</div><div><b>45 min</b>+ treadmill to fill the time</div><div><b>60 min</b>+ an extra round of each</div></div>
+    
     <div class="row" style="margin-top:12px;gap:6px">${WEEK_NAME.map((w,i) => `<button class="btn sm ${i===state.planWeek?"primary":""}" data-wk="${i}">${w}</button>`).join("")}</div>
-    <p class="focus" style="margin-top:8px;font-size:12.5px">${state.planWeek === wi ? "Showing this week." : "Previewing " + WEEK_NAME[state.planWeek] + ". This week is " + WEEK_NAME[wi] + "."}</p></div><div class="plan">`;
+    <p class="focus" style="margin-top:8px;font-size:12.5px">${state.planWeek === wi ? "" : "Previewing " + WEEK_NAME[state.planWeek] + ". This week is " + WEEK_NAME[wi] + "."}</p></div><div class="plan">`;
   for (const k of ["mon","tue","wed","thu","fri","sat","sun"]) {
     const d = PLAN[k]; const sess = buildSession(k, 60, state.planWeek);
     html += `<details class="day" ${k===key?"open":""}><summary><div class="dow ${d.rest?"rest":""}">${DOW_LABEL[k]}</div><div><div class="sum-t">${d.title}</div><div class="sum-d">${d.rest ? d.focus.split(".")[0] : "15–60 min · " + d.focus.split(".")[0]}</div></div><span class="arrow">\u25be</span></summary>
@@ -1400,29 +1398,31 @@ function renderPlan() {
     const liveSess = liveDay ? buildSession(k, state.duration || 30, wi) : null;
     const blocks = liveDay ? liveSess.blocks : sess.blocks;
     blocks.forEach((b, bi) => {
-      html += `<div class="block"><header><span class="t">${b.name}${b.again ? " · extra round" : ""}</span><span class="m">${liveDay ? (b.tread ? b.min + " min" : b.min + " min · " + b.rounds + " round" + (b.rounds > 1 ? "s" : "")) : b.tread ? "45 and 60-min sessions" : b.again ? "60-min session only" : b.min + " min"}</span></header><ul class="ex">` +
+      html += `<div class="block"><header><span class="t">${b.name}${b.again ? " · extra round" : ""}</span><span class="m">${liveDay ? (b.tread ? b.min + " min" : b.min + " min · " + b.rounds + " round" + (b.rounds > 1 ? "s" : "")) : b.tread ? "45+ min" : b.again ? "60 min only" : b.min + " min"}</span></header><ul class="ex">` +
         b.items.map((it, i) => { const [nm, reps, tip, isSwap] = applySwap(it); const id = bi + "|" + b.name + "|" + i; const on = liveDay && !!checks.on[id];
-          return `<li class="${isSwap?"swapped":""} ${on?"done":""}" ${liveDay ? "" : 'style="grid-template-columns:1fr auto"'}>${liveDay ? `<input type="checkbox" id="pchk-${bi}-${i}" data-chk="${id}" ${on?"checked":""} aria-label="Done: ${esc(nm)}">` : ""}<div><div class="n" data-ex="${esc(nm)}" data-exr="${esc(reps)}" data-ext="${esc(tip || "")}">${esc(nm)}</div>${tip ? `<div class="tip">${esc(tip)}</div>` : ""}</div><div class="r">${esc(reps)}</div>${liveDay ? `<button class="swap" data-swap="${esc(it[0])}" title="Swap this exercise" aria-label="Swap ${esc(nm)}"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></button>` : ""}</li>`; }).join("") + `</ul></div>`;
+          return `<li class="${isSwap?"swapped":""} ${on?"done":""}" ${liveDay ? "" : 'style="grid-template-columns:1fr auto"'}>${liveDay ? `<input type="checkbox" id="pchk-${bi}-${i}" data-chk="${id}" ${on?"checked":""} aria-label="Done: ${esc(nm)}">` : ""}<div><div class="n" data-ex="${esc(nm)}" data-exr="${esc(reps)}" data-ext="${esc(tip || "")}">${esc(nm)}</div></div><div class="r">${esc(reps)}</div>${liveDay ? `<button class="swap" data-swap="${esc(it[0])}" title="Swap this exercise" aria-label="Swap ${esc(nm)}"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></button>` : ""}</li>`; }).join("") + `</ul></div>`;
     });
-    if (liveDay) html += `<div class="camerarow" style="margin-top:12px">${doneP ? `<span class="chip good">\u2713 done today \u00b7 ${doneP.kcal ? doneP.kcal + " kcal" : ""}</span>` : `<button class="btn primary sm" type="button" id="plan-mdone">Mark today's session done</button>`}<span class="focus" style="font-size:12.5px">Tick each move as you finish it; the burned figure updates.</span></div>`;
-    if (savedMatches(k).length) html += `<div class="block"><header><span class="t">Your Instagram saves</span><span class="m">6 of ${savedMatches(k).length} that fit, new each week</span></header><div class="vids">${savedLinks(savedFor(k, k + "w" + Math.floor(Date.now() / 604800000), 0, 6))}</div></div>`;
-    if (d.videos.length) html += `<div class="block"><header><span class="t">Follow-along videos</span><span class="m">opens YouTube search</span></header><div class="vids">${d.videos.map(v => `<a href="${v[2]}" target="_blank" rel="noopener">${v[0]}<span class="who">${v[3]} min \u00b7 ${v[1]} \u2197</span></a>`).join("")}</div></div>`;
+    if (liveDay) html += `<div class="camerarow" style="margin-top:12px">${doneP ? `<span class="chip good">\u2713 done today \u00b7 ${doneP.kcal ? doneP.kcal + " kcal" : ""}</span>` : `<button class="btn primary sm" type="button" id="plan-mdone">Mark today's session done</button>`}</div>`;
+    if (savedMatches(k).length || d.videos.length) html += `<details class="cz" style="margin-top:12px"><summary>Videos<span class="arrow" style="color:var(--muted)">\u25be</span></summary>`;
+    if (savedMatches(k).length) html += `<div class="block" style="border-top:0;margin-top:0;padding-top:0"><header><span class="t">Your Instagram saves</span><span class="m">${savedMatches(k).length} fit</span></header><div class="vids">${savedLinks(savedFor(k, k + "w" + Math.floor(Date.now() / 604800000), 0, 6))}</div></div>`;
+    if (d.videos.length) html += `<div class="block"><header><span class="t">YouTube</span><span class="m"></span></header><div class="vids">${d.videos.map(v => `<a href="${v[2]}" target="_blank" rel="noopener">${v[0]}<span class="who">${v[3]} min \u00b7 ${v[1]} \u2197</span></a>`).join("")}</div></div>`;
+    if (savedMatches(k).length || d.videos.length) html += `</details>`;
     html += `</div></details>`;
   }
   const rts = state.routines || [];
   html += `</div><div class="card" id="myRoutines"><div class="row between"><h2>My routines</h2><button class="btn primary sm" type="button" id="rt-new">New routine</button></div>
-    <p class="focus" style="margin-top:6px">Make your own list from the recommended moves, your trainer's moves and the swap library, with your own sets and reps. Tap any move's name, anywhere in the app, for pictures and a video.</p>
+    
     <div class="camerarow" style="margin-top:10px"><button class="btn sm" type="button" id="rt-copy-today">Start from today's plan</button></div>
     ${rts.length ? `<div class="plan" style="margin-top:12px">${rts.map(r => `<details class="day"><summary><div class="dow" style="font-size:18px">\u2605</div><div><div class="sum-t">${esc(r.name)}</div><div class="sum-d">${r.items.length} moves \u00b7 ${esc(r.items.slice(0, 3).map(i => i.n).join(", "))}</div></div><span class="arrow">\u25be</span></summary>
       <div class="body">${sessionHTML(routineAsSession(r), true)}<div class="camerarow" style="margin-top:12px"><button class="btn primary sm" type="button" data-pick="r:${r.id}">Add to today</button>${partsP["r:" + r.id] ? `<span class="chip good">\u2713 done today</span>` : `<button class="btn sm" type="button" data-mdone="r:${r.id}">Mark done today</button>`}<button class="btn sm" type="button" data-rtedit="${r.id}">Edit</button><button class="btn ghost sm" type="button" data-rtdel="${r.id}">Delete</button></div></div></details>`).join("")}</div>` : ""}`;
   const mine = mySessions();
   if (mine.length) {
     html += `</div><div class="card" id="mySessions"><div class="row between"><h2>Your trainer sessions</h2><span class="chip acc">${mine.length}</span></div>
-      <p class="focus" style="margin-top:6px">${esc(state.myworkSource || "Imported from your workout sheet")}. Open any one to see the moves, weights and sets, and tap <b>Add to today</b> to do it alongside the day's plan, or <b>Mark done today</b> if you have already finished it. Your moves also appear in the swap list, marked <b>yours</b>.</p>
+      
       <div class="plan" style="margin-top:12px">${mine.map(x => `<details class="day"><summary><div class="dow" style="font-size:11px;line-height:1.15;text-align:center">${esc(parseISO(x.date).toLocaleDateString(undefined, { day: "numeric", month: "short" }))}<br><span style="font-weight:600;opacity:.75">${parseISO(x.date).getFullYear()}</span></div><div><div class="sum-t">${esc(sessExercises(x).slice(0, 3).map(e => e.n).join(", "))}</div><div class="sum-d">${sessionSummary(x)}</div></div><span class="arrow">\u25be</span></summary>
         <div class="body">${sessionHTML(x, true)}<div class="camerarow" style="margin-top:12px"><button class="btn primary sm" data-pick="${x.id}">Add to today</button>${partsP[x.id] ? `<span class="chip good">\u2713 done today</span>` : `<button class="btn sm" type="button" data-mdone="${x.id}">Mark done today</button>`}<button class="btn sm" type="button" data-rtcopy="${x.id}">Copy to my routines</button></div></div></details>`).join("")}</div>`;
   }
-  html += `</div><div class="card"><h3>Creators to follow</h3><p class="focus" style="margin-top:4px">All female-led, tone-focused, mostly light or no weights.</p><div class="vids">
+  html += `</div><div class="card"><h3>Creators to follow</h3><div class="vids">
     ${[["kayla_itsines","Kayla Itsines \u00b7 Sweat — 28-min circuits"],["madfit.ig","MadFit — arms, legs, no-bulk toning"],["pamela_rf","Pamela Reif — 10–20 min sets"],["heatherrobertson","Heather Robertson — light-dumbbell toning"],["movewithnicole","Move With Nicole — Pilates thighs & core"],["lillysabri","Lilly Sabri — lower belly & legs"],["blogilates","Blogilates — Pilates abs"],["growingannanas","growingannanas — full body"]].map(c => `<a href="${ig(c[0])}" target="_blank" rel="noopener">${c[1]}<span class="who">@${c[0]} \u2197</span></a>`).join("")}
   </div></div>`;
   $("#screen-plan").innerHTML = html;
@@ -1853,7 +1853,7 @@ function ldlCheck(name, cholMg) {
   return best;
 }
 const ldlCls = l => l === "high" ? "bad" : l === "mod" ? "warn" : "good";
-const ldlLbl = l => l === "high" ? "raises bad cholesterol" : l === "mod" ? "some effect on cholesterol" : "good fats";
+const ldlLbl = l => l === "high" ? "bad for cholesterol" : l === "mod" ? "some cholesterol" : "good fats";
 function ldlChip(name, cholMg) { const L = ldlCheck(name, cholMg); return L ? `<span class="chip ${ldlCls(L.level)}" title="${esc(L.why)}">${ldlLbl(L.level)}</span>` : ""; }
 function histCheck(name) {
   const n = (name || "").toLowerCase(); if (!n.trim()) return null;
@@ -1911,8 +1911,7 @@ function renderFood() {
     ${iso !== todayISO() ? `<div class="row between" style="margin-top:10px;background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:8px 12px"><span style="font-size:13px;font-weight:600">You are looking at ${fmtShort(iso)}, not today.</span><button class="btn sm" type="button" id="fd-today">Back to today</button></div>` : ""}
     <div class="kring" style="margin-top:12px"><svg viewBox="0 0 92 92" role="img" aria-label="Calories eaten"><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="9"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="${eaten > K.target ? "var(--warn)" : "var(--accent)"}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}" transform="rotate(-90 46 46)"/><text x="46" y="51" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--ink);font-family:var(--display)">${Math.round(pct*100)}%</text></svg>
       <div><div class="big num ${left < 0 ? "up" : ""}">${left >= 0 ? left.toLocaleString() : "+" + Math.abs(left).toLocaleString()}<small> kcal ${left >= 0 ? "left" : "over"}</small></div>
-        <div class="focus num">Protein <b>${Math.round(prot)} g</b> of ${K.protein} g \u00b7 Fat <b class="${fat > fatGoal ? "up" : ""}">${Math.round(fat)} g</b> of ${fatGoal} g${fatUnknown && items.length ? ` <span title="${fatUnknown} item(s) with no fat figure">*</span>` : ""} \u00b7 Cholesterol <b class="${chol > cholLimit ? "up" : ""}">${Math.round(chol)} mg</b> of ${cholLimit}${cholUnknown && items.length ? ` <span title="${cholUnknown} item(s) with no cholesterol figure">*</span>` : ""} \u00b7 ${highs ? `<span class="chip bad">${highs} high-histamine</span>` : mods ? `<span class="chip warn">${mods} moderate</span>` : items.length ? `<span class="chip good">histamine-friendly day</span>` : ""}</div>
-        <div class="focus" style="margin-top:4px;font-size:12.5px">${K.inRange ? "Maintenance target" : "Deficit target"}: your resting burn is about ${K.bmr.toLocaleString()} kcal, with training roughly ${K.tdee.toLocaleString()}${K.inRange ? "" : ", minus 350 for steady fat loss"}.${state.settings.kcalTarget > 0 ? " Using your custom target." : ""}</div></div></div></div>`;
+        </div></div></div>`;
 
   // The day's summary: what was eaten, grouped by meal, with each meal's share of the day.
   const mealTotals = MEALS.map(m => ({ m, items: items.filter(i => i.meal === m) }))
@@ -1937,53 +1936,49 @@ function renderFood() {
     const highs = items.filter(i => i.hist === "high").length, mods = items.filter(i => i.hist === "mod").length;
     html += `<div class="daytot">
       <div><span>Eaten</span><b class="num">${eaten.toLocaleString()} kcal</b></div>
-      <div><span>Target</span><b class="num">${K.target.toLocaleString()} kcal</b></div>
       <div><span>${overBy > 0 ? "Over by" : "Still left"}</span><b class="num ${overBy > 0 ? "up" : "down"}">${Math.abs(overBy).toLocaleString()} kcal</b></div>
       <div><span>Protein</span><b class="num">${Math.round(prot)} of ${K.protein} g</b></div>
       <div><span>Fat</span><b class="num ${fat > fatGoal ? "up" : ""}">${Math.round(fat)} of ${fatGoal} g</b></div>
-      <div><span>No fat figure</span><b class="num">${fatUnknown} item${fatUnknown === 1 ? "" : "s"}</b></div>
       ${iso === todayISO() ? `<div><span>Burned today</span><b class="num">${burnedToday().total.toLocaleString()} kcal</b></div><div><span>Net</span><b class="num">${(eaten - burnedToday().total).toLocaleString()} kcal</b></div>` : ""}
       <div><span>Cholesterol</span><b class="num ${chol > cholLimit ? "up" : ""}">${Math.round(chol)} of ${cholLimit} mg</b></div>
-      <div><span>Bad-cholesterol day</span><b class="num ${ldlDay === "high" ? "up" : ldlDay === "low" ? "down" : ""}">${ldlDay === "high" ? "High" : ldlDay === "mod" ? "Medium" : "Low"}</b></div>
-      <div><span>Foods that raise it</span><b class="num">${ldlHigh} high \u00b7 ${ldlMod} some${ldlGood ? " \u00b7 " + ldlGood + " good" : ""}</b></div>
-      <div><span>No cholesterol figure</span><b class="num">${cholUnknown} item${cholUnknown === 1 ? "" : "s"}</b></div>
+      <div><span>Bad cholesterol</span><b class="num ${ldlDay === "high" ? "up" : ldlDay === "low" ? "down" : ""}">${ldlDay === "high" ? "High" : ldlDay === "mod" ? "Medium" : "Low"}</b></div>
     </div>
-    <p class="focus" style="margin-top:10px;font-size:12.5px">${highs ? `<span class="chip bad">${highs} high histamine</span> ` : ""}${mods ? `<span class="chip warn">${mods} moderate</span> ` : ""}${!highs && !mods && items.length ? `<span class="chip good">nothing high in histamine today</span> ` : ""}${overBy > 0 ? "Over target today. One day does not undo a week — look at the 14-day chart below." : eaten < K.target * 0.6 ? "Well under target. Eating too little slows fat loss and costs muscle." : "On track for today."}</p>`;
+    <p class="focus" style="margin-top:10px;font-size:12.5px">${highs ? `<span class="chip bad">${highs} high histamine</span> ` : ""}${mods ? `<span class="chip warn">${mods} moderate</span> ` : ""}${!highs && !mods && items.length ? `<span class="chip good">nothing high in histamine today</span> ` : ""}${overBy > 0 ? "Over target today." : eaten < K.target * 0.6 ? "Well under target." : "On track."}</p>`;
   }
   html += `</div>`;
 
   html += `<div class="card"><h3>Add food</h3>
     <form class="form" id="foodForm" style="margin-top:10px">
-      <label class="full">What did you eat? <span><small>any cuisine, with portion if you can</small></span><input type="text" id="ff-name" autocomplete="off" maxlength="120" placeholder="e.g. chicken kottu, small plate"><div class="hist" id="ff-hist"></div><div class="hist" id="ff-ldl" style="margin-top:0"></div><div class="picks" id="ff-picks" hidden></div></label>
-      <div class="full camerarow" style="margin-top:-2px">${canSearch() ? `<button class="btn sm" type="button" id="ff-online">Search online</button>` : ""}<span class="focus" style="font-size:12px">${onMyServer() ? "USDA and Open Food Facts, with brands" : ""}</span></div>
+      <label class="full">What did you eat?<input type="text" id="ff-name" autocomplete="off" maxlength="120" placeholder="e.g. chicken kottu, small plate"><div class="hist" id="ff-hist"></div><div class="hist" id="ff-ldl" style="margin-top:0"></div><div class="picks" id="ff-picks" hidden></div></label>
+      <div class="full camerarow" style="margin-top:-2px">${canSearch() ? `<button class="btn sm" type="button" id="ff-online">Search online</button>` : ""}<span class="focus" style="font-size:12px"></span></div>
       <div class="full">${compareHTML("", "ff-cmp")}</div>
       <div class="full" id="ff-online-res"></div>
-      <div class="full"><label style="gap:6px"><span>How much? <small>portions of that serving</small></span>
+      <div class="full"><label style="gap:6px"><span>How much?</span>
         <div class="qty">
           <div class="step"><button type="button" id="ff-minus" aria-label="Less">\u2212</button><input type="number" id="ff-qty" inputmode="decimal" min="0.25" max="20" step="0.25" value="1" aria-label="Quantity"><button type="button" id="ff-plus" aria-label="More">+</button></div>
           <div class="preset" id="ff-presets" role="group" aria-label="Common portions">${[[0.5,"\u00bd"],[1,"1"],[1.5,"1\u00bd"],[2,"2"],[3,"3"]].map(x => `<button type="button" data-q="${x[0]}" aria-pressed="${x[0]===1}">${x[1]}</button>`).join("")}</div>
         </div>
         <div class="qtot" id="ff-qtot"></div></label></div>
-      <label>Calories <span><small>kcal, total</small></span><input type="number" id="ff-kcal" inputmode="numeric" min="0" max="20000" step="1" placeholder="0"></label>
-      <label>Protein <span><small>g, optional</small></span><input type="number" id="ff-prot" inputmode="decimal" min="0" max="1000" step="1" placeholder="0"></label>
-      <label>Fat <span><small>g, optional</small></span><input type="number" id="ff-fat" inputmode="decimal" min="0" max="1000" step="0.1" placeholder="?"></label>
-      <label>Cholesterol <span><small>mg, optional</small></span><input type="number" id="ff-chol" inputmode="numeric" min="0" max="5000" step="1" placeholder="?"></label>
+      <label>Calories <span><small>kcal</small></span><input type="number" id="ff-kcal" inputmode="numeric" min="0" max="20000" step="1" placeholder="0"></label>
+      <label>Protein <span><small>g</small></span><input type="number" id="ff-prot" inputmode="decimal" min="0" max="1000" step="1" placeholder="0"></label>
+      <label>Fat <span><small>g</small></span><input type="number" id="ff-fat" inputmode="decimal" min="0" max="1000" step="0.1" placeholder="?"></label>
+      <label>Cholesterol <span><small>mg</small></span><input type="number" id="ff-chol" inputmode="numeric" min="0" max="5000" step="1" placeholder="?"></label>
       <label>Meal<select id="ff-meal">${MEALS.map(m => `<option ${m === defaultMeal() ? "selected" : ""}>${m}</option>`).join("")}</select></label>
-      <label class="full" style="flex-direction:row;align-items:center;gap:8px;font-size:13.5px"><input type="checkbox" id="ff-save" style="width:18px;height:18px;flex:none;accent-color:var(--accent)"> Save to my foods, so it fills itself in next time</label>
+      <label class="full" style="flex-direction:row;align-items:center;gap:8px;font-size:13.5px"><input type="checkbox" id="ff-save" style="width:18px;height:18px;flex:none;accent-color:var(--accent)"> Save to my foods</label>
       <div class="full camerarow">
         <button class="btn primary" type="submit">Add</button>
         ${state.sample ? `<button class="btn" type="button" id="ff-ai">Estimate with Claude</button>` : ""}
-        <button class="btn" type="button" id="ff-cam">\u{1F4F7} Photo \u2192 auto add</button>
-        <button class="btn" type="button" id="ff-gal">\u{1F5BC} From gallery</button>
+        <button class="btn" type="button" id="ff-cam">\u{1F4F7} Photo</button>
+        <button class="btn" type="button" id="ff-gal">\u{1F5BC} Gallery</button>
         <input type="file" id="ff-file" accept="image/*" capture="environment" hidden>
         <input type="file" id="ff-gfile" accept="image/*" hidden>
       </div>
       <div class="full" id="ff-shot" hidden></div>
       <div class="full ai-out" id="ff-ai-out"></div>
     </form>
-    ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${[r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul><p class="focus" style="font-size:12.5px">One portion each. Type the name in the box above and it fills itself in.</p></details>` : ""}</div>
+    ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${[r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul></details>` : ""}</div>
     <div class="card" id="builderCard"><div class="row between"><h3>Make your own</h3><button class="btn sm ${builder.open ? "ghost" : "primary"}" type="button" id="bd-toggle">${builder.open ? "Close" : "Start"}</button></div>
-      <p class="focus" style="margin-top:4px">Home-cooked Chinese or Western dishes, salads, smoothies: add each ingredient with its amount, like \u00bd tsp of spicy mayo or 2 tbsp of soy sauce. Cooking a pot? Say how many servings it makes and how many you ate. Save it as a recipe to reuse.</p>
+      <p class="focus" style="margin-top:4px">Build a dish from its ingredients and save it as a recipe.</p>
       <div id="builderBody"></div></div>`;
 
   if (photoPanel && photoPanel.iso === iso && photoPanel.items.length) {
@@ -1998,12 +1993,12 @@ function renderFood() {
           <div class="step"><button type="button" id="pp-minus" aria-label="Fewer servings">\u2212</button><input type="number" id="pp-qty" inputmode="decimal" min="0.25" max="20" step="0.25" value="${one.qty}" aria-label="Servings"><button type="button" id="pp-plus" aria-label="More servings">+</button></div>
           <div class="preset">${[0.5,1,1.5,2,3].map(q => `<button type="button" data-pq="${q}" aria-pressed="${q===one.qty}">${q===0.5?"\u00bd":q===1.5?"1\u00bd":q}</button>`).join("")}</div></div>
           <div class="qtot">One serving is <b>${esc(photoPanel.serving || "as printed")}</b> at <b>${one.base.kcal} kcal</b>${one.base.prot != null ? ` and ${one.base.prot} g protein` : ""}.</div>` : ""}
-        <p class="focus" style="margin-top:10px;font-size:12.5px">${lbl ? "Numbers come straight off the label, not an estimate." : "Portions are Claude's read of the photo. To change one, remove it below and add it again with the quantity you want."}</p></div>`;
+        </div>`;
     } else photoPanel = null;
   }
   html += `<div class="card"><div class="row between"><h3>Last 14 days</h3><span class="chip">target ${K.target.toLocaleString()} kcal</span></div><div class="chart-wrap" id="chartKcal" style="margin-top:8px"></div><div class="legend"><span><i></i>kcal eaten</span><span><i class="proj"></i>target</span></div></div>`;
 
-  html += `<div class="card"><h3>High-histamine foods by cuisine</h3><p class="focus" style="margin-top:4px">Tolerance is personal: this flags the usual suspects so you can spot patterns against how you feel. It is not medical advice. If symptoms are regular, a doctor or dietitian can test for DAO deficiency.</p>
+  html += `<div class="card"><h3>High-histamine foods by cuisine</h3><p class="focus" style="margin-top:4px">A guide to the usual suspects, not medical advice.</p>
     <input type="search" id="cz-search" class="btn" style="width:100%;margin-top:10px;text-align:left;font-weight:500" placeholder="Search a food or cuisine, e.g. kimchi, prawns, Sri Lankan">
     <div id="cz-list" style="margin-top:8px"></div></div>`;
   $("#screen-food").innerHTML = html;
@@ -2021,7 +2016,7 @@ function renderFood() {
   // live histamine + picks
   const nameEl = $("#ff-name"), histEl = $("#ff-hist"), picksEl = $("#ff-picks");
   let lastHist = null;
-  const showHist = () => { const h = histCheck(nameEl.value); lastHist = h; histEl.innerHTML = !nameEl.value.trim() ? "" : h ? `<span class="chip ${hcls(h.level)}">${hlbl(h.level)}</span> ${h.why} (“${h.hit}”)` : `<span class="chip good">no histamine flags</span> fresh and simple is best`; };
+  const showHist = () => { const h = histCheck(nameEl.value); lastHist = h; histEl.innerHTML = !nameEl.value.trim() ? "" : h ? `<span class="chip ${hcls(h.level)}">${hlbl(h.level)}</span> ${h.why} (“${h.hit}”)` : `<span class="chip good">no histamine flags</span>`; };
   // Base = one portion. The calorie box always shows base x quantity.
   let base = null, qty = 1;
   const qtyEl = $("#ff-qty"), kEl = $("#ff-kcal"), pEl = $("#ff-prot"), cEl = $("#ff-chol"), fEl = $("#ff-fat"), qtot = $("#ff-qtot");
@@ -2030,7 +2025,7 @@ function renderFood() {
     if (base) { kEl.value = Math.round(base.kcal * qty); pEl.value = base.prot == null ? "" : Math.round(base.prot * qty); cEl.value = base.chol == null ? "" : Math.round(base.chol * qty); fEl.value = base.fat == null ? "" : r1(base.fat * qty); }
     qtot.innerHTML = base
       ? `<b>${qty === 1 ? "1 portion" : qty + " portions"}</b> of ${esc(base.label)} \u00b7 ${base.kcal} kcal each \u2192 <b>${Math.round(base.kcal * qty).toLocaleString()} kcal</b>`
-      : (qty === 1 ? "One portion. Change it and the calories scale." : `${qty} portions \u2014 enter the calories for ONE portion and they scale.`);
+      : (qty === 1 ? "" : `${qty} portions \u2014 enter the calories for ONE portion and they scale.`);
     $("#ff-presets").querySelectorAll("[data-q]").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.q) === qty)));
     if (qtyEl.value !== String(qty)) qtyEl.value = qty;
   };
@@ -2066,7 +2061,7 @@ function renderFood() {
     histEl.innerHTML = `<span class="chip ${hcls(formPrefill.hist.level)}">${hlbl(formPrefill.hist.level)}</span> ${esc(formPrefill.hist.why || "")} (read from your photo)`;
     formPrefill = null;
   }
-  const showLdl = () => { const L = ldlCheck(nameEl.value, cEl.value.trim() === "" ? null : Number(cEl.value)); $("#ff-ldl").innerHTML = !nameEl.value.trim() ? "" : L ? `<span class="chip ${ldlCls(L.level)}">${ldlLbl(L.level)}</span> ${L.why} (\u201c${esc(L.hit)}\u201d)` : `<span class="chip">cholesterol: no flags</span> nothing in the name points to bad fats`; };
+  const showLdl = () => { const L = ldlCheck(nameEl.value, cEl.value.trim() === "" ? null : Number(cEl.value)); $("#ff-ldl").innerHTML = !nameEl.value.trim() ? "" : L ? `<span class="chip ${ldlCls(L.level)}">${ldlLbl(L.level)}</span> ${L.why} (\u201c${esc(L.hit)}\u201d)` : ""; };
   nameEl.oninput = () => { showHist(); showLdl(); showPicks(); autoFill(); updateCompare("ff-cmp", nameEl.value); };
   cEl.addEventListener("input", showLdl); if (nameEl.value.trim()) showLdl();
   const onl = $("#ff-online"), onlRes = $("#ff-online-res");
@@ -2101,11 +2096,11 @@ function renderFood() {
       if (best) useOnline(best, true);
       else { $("#ff-save").checked = true; setTimeout(() => kEl.focus(), 50); }
       const rest = lastOnline.filter(r => r !== best);
-      onlRes.innerHTML = (best ? `<p class="focus" style="margin-top:6px">Using <b>${esc(best.name)}</b>${best.brand ? " (" + esc(best.brand) + ")" : ""} from ${esc(best.src)}.${rest.length ? " Not the one? Tap another:" : ""}</p>` : `<p class="focus"><b>Nothing found online for “${esc(term)}”.</b> Add it yourself: type the calories for one portion below (protein, fat and cholesterol if you know them), and it is saved to <b>my foods</b> so next time it fills itself in.</p>`)
+      onlRes.innerHTML = (best ? `<p class="focus" style="margin-top:6px">Using <b>${esc(best.name)}</b>${best.brand ? " (" + esc(best.brand) + ")" : ""} from ${esc(best.src)}.${rest.length ? " Not the one? Tap another:" : ""}</p>` : `<p class="focus"><b>Nothing found.</b> Type the calories below; it will be saved to My foods.</p>`)
         + (rest.length ? `<div class="olist">${rest.map(r => onlineResultHTML(r, lastOnline.indexOf(r), true)).join("")}</div>` : "")
         + (d.notes && d.notes.length ? `<p class="focus" style="margin-top:6px;font-size:12px">${esc(d.notes.join(". "))}.</p>` : "");
       onlRes.querySelectorAll("[data-or]").forEach(b => b.onclick = () => { useOnline(lastOnline[+b.dataset.or], false); onlRes.innerHTML = ""; });
-    } catch (e) { onlRes.innerHTML = `<p class="focus">Could not search: ${esc(e.message)}. You can still add it yourself: type the calories below and it is saved to my foods.</p>`; $("#ff-save").checked = true; }
+    } catch (e) { onlRes.innerHTML = `<p class="focus">Could not search. Type the calories below; it will be saved to My foods.</p>`; $("#ff-save").checked = true; }
     finally { onl.disabled = false; }
   };
   const bt = $("#bd-toggle"); if (bt) bt.onclick = () => { builder.open = !builder.open; saveBuilder(); renderFood(); if (builder.open) setTimeout(() => { const c = $("#builderCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); };
@@ -2161,7 +2156,7 @@ function renderFood() {
     shot = { thumb, blob, busy: false, msg: "" };
     photoPanel = null;
     if (canRead()) readPhoto();
-    else { shot.msg = "Nothing here can read photos yet. Your photo is saved with the entry \u2014 type the food below. To have photos read automatically, add an Anthropic key on your Mac (see the Log screen) or use the Claude version."; renderFood(); }
+    else { shot.msg = "Photos can't be read in this app. It is saved with the entry; type the food below."; renderFood(); }
   };
 
   function canRead() { return !!state.sample || !!(serverVision && serverVision.available); }
@@ -2644,7 +2639,7 @@ function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&l
 function renderLog() {
   const s = state.settings; const u = s.unit === "cm" ? "cm" : "in"; const last = sortedEntries().slice(-1)[0];
   const ph = f => last && last[f] != null ? (s.unit === "cm" ? inToCm(last[f]).toFixed(1) : last[f].toFixed(1)) : "";
-  $("#screen-log").innerHTML = `<div class="card lift"><h2>New entry</h2><p class="focus" style="margin-top:4px">Weigh in every morning if you like, but measure once a week. Leave any field blank to skip it.</p>
+  $("#screen-log").innerHTML = `<div class="card lift"><h2>New entry</h2>
     <form class="form" id="entryForm" style="margin-top:12px">
       <label>Date<input type="date" id="f-date" value="${todayISO()}" max="${todayISO()}" required></label>
       <label>Weight <span><small>kg</small></span><input type="number" id="f-weight" step="0.1" min="30" max="150" inputmode="decimal" placeholder="${last && last.weight != null ? last.weight.toFixed(1) : "55.0"}"></label>
@@ -2683,20 +2678,20 @@ function renderLog() {
     </div>
     <div class="card"><div class="row between"><h3>Reading photos</h3>${state.sample ? `<span class="chip good">on \u00b7 via Claude</span>` : serverVision && serverVision.available ? `<span class="chip good">on \u00b7 via your Mac</span>` : `<span class="chip">off</span>`}</div>
       <p class="focus" style="margin-top:4px">${state.sample
-        ? "Photos of meals and nutrition labels are read automatically, and the calories and protein fill themselves in."
+        ? "Meal and label photos are read automatically."
         : serverVision && serverVision.available
           ? `Your Mac reads your photos using ${esc(serverVision.model || "Claude")}. Each photo costs a few cents on your Anthropic account.`
-          : STATIC ? "This installed copy keeps everything on your phone and has no link to Claude, so a photo is saved with the entry but not read. For photo reading, open the Claude version." : "Right now a photo is only saved with the entry, not read. Two ways to turn reading on:"}</p>
+          : STATIC ? "Not available in this app. Use the Claude version to read photos." : "Right now a photo is only saved with the entry, not read. Two ways to turn reading on:"}</p>
       ${state.sample || (serverVision && serverVision.available) || STATIC ? "" : `<ol style="margin:8px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink2)">
         <li style="margin-bottom:6px">Open the Claude version of this app, which reads photos with no setup.</li>
         <li>Or let this Mac do it: get a key from console.anthropic.com, save it as <b>anthropic.key</b> in the <b>sculpt-tracker</b> folder, then restart the server. Reading then works on every device, including your phone.</li></ol>
         <p class="focus" style="margin-top:8px;font-size:12.5px">The second way bills your own Anthropic account, roughly a few cents a photo, capped at 60 reads an hour.</p>`}
     </div>
     ${framed ? "" : `<div class="card"><h3>Your data</h3>
-      <p class="focus" style="margin-top:4px">${STATIC ? "Everything this app knows is stored on this phone. Back it up here, or bring in your data from the Mac copy." : "Download everything as one file, or bring in a file from another copy of the app."}</p>
+      <p class="focus" style="margin-top:4px">${STATIC ? "Stored on this phone." : ""}</p>
       <div class="camerarow" style="margin-top:10px">${STATIC ? `<button class="btn primary" type="button" id="dx-mac">Get my data from the Mac</button>` : ""}<button class="btn" type="button" id="dx-export">Download my data</button><button class="btn" type="button" id="dx-import">Import a file</button><input type="file" id="dx-file" accept="application/json,.json" hidden></div>
-      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "With the Mac awake and Tailscale on, the first button copies everything over: trainer sessions, routines, recipes, food log, weigh-ins, steps and settings. Nothing already here is removed." : "Trainer sessions, routines, recipes, food log, weigh-ins, steps and settings."}</p></div>`}
-    ${STATIC ? `<div class="card"><h3>Food database key</h3><p class="focus" style="margin-top:4px">Online search uses a shared USDA demo key with a small hourly limit. A free personal key from api.data.gov removes it.</p>
+      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "The Mac must be awake with Tailscale on. Nothing here is removed." : ""}</p></div>`}
+    ${STATIC ? `<div class="card"><h3>Food database key</h3><p class="focus" style="margin-top:4px">Optional: a free key from api.data.gov lifts the hourly search limit.</p>
       <form class="form" id="usdaForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>USDA key<input type="text" id="s-usda" autocomplete="off" value="${esc(state.settings.usdaKey || "")}" placeholder="paste it here"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>` : ""}
     <div class="card"><h3>Measuring guide</h3><div class="guide" style="margin-top:10px">
       <div><b>Upper arm</b>Arm relaxed by your side, tape around the widest point between shoulder and elbow.</div>
