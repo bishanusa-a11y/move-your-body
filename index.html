@@ -940,7 +940,14 @@ function renderToday() {
   const S = summary(); const P = projection();
   const picked = state.picks[iso] ? sessionById(state.picks[iso]) : null;
 
-  let html = `<div class="card">${burnedHTML(false)}</div>`;   // burned figure first, session below it
+  let html = `<div class="card">${burnedHTML(false)}</div>`;   // burned figure first, then steps, then the session
+  const stepsToday = state.steps[iso]; const sg = state.settings.stepGoal || 8000;
+  const wk = week.map(d => state.steps[d.iso]).filter(v => v != null);
+  const wkAvg = wk.length ? Math.round(wk.reduce((a,b)=>a+b,0) / wk.length) : null;
+  html += `<div class="card"><div class="row between"><h3>Steps today</h3>${stepsToday != null ? `<span class="chip ${stepsToday >= sg ? "good" : ""} num">${stepsToday.toLocaleString()} / ${sg.toLocaleString()}</span>` : `<span class="chip">goal ${sg.toLocaleString()}</span>`}</div>
+    <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, (stepsToday||0) / sg * 100)}%"></i></div>
+    <form class="form" id="stepsForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>From the Fitbit app on your Pixel <input type="number" id="f-steps" inputmode="numeric" min="0" max="100000" step="1" placeholder="${stepsToday != null ? stepsToday : "e.g. 8500"}"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form>
+    <p class="focus" style="margin-top:8px">${wkAvg != null ? `This week's average: <b class="num">${wkAvg.toLocaleString()}</b> steps a day.` : "Open Fitbit, read today's steps, type them here. Takes ten seconds and the trend shows on the Progress screen."}</p></div>`;
   if (picked) {
     const nEx = sessExercises(picked).length;
     html += `<div class="card lift hero">
@@ -995,13 +1002,6 @@ function renderToday() {
   }
   }
 
-  const stepsToday = state.steps[iso]; const sg = state.settings.stepGoal || 8000;
-  const wk = week.map(d => state.steps[d.iso]).filter(v => v != null);
-  const wkAvg = wk.length ? Math.round(wk.reduce((a,b)=>a+b,0) / wk.length) : null;
-  html += `<div class="card"><div class="row between"><h3>Steps today</h3>${stepsToday != null ? `<span class="chip ${stepsToday >= sg ? "good" : ""} num">${stepsToday.toLocaleString()} / ${sg.toLocaleString()}</span>` : `<span class="chip">goal ${sg.toLocaleString()}</span>`}</div>
-    <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, (stepsToday||0) / sg * 100)}%"></i></div>
-    <form class="form" id="stepsForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>From the Fitbit app on your Pixel <input type="number" id="f-steps" inputmode="numeric" min="0" max="100000" step="1" placeholder="${stepsToday != null ? stepsToday : "e.g. 8500"}"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form>
-    <p class="focus" style="margin-top:8px">${wkAvg != null ? `This week's average: <b class="num">${wkAvg.toLocaleString()}</b> steps a day.` : "Open Fitbit, read today's steps, type them here. Takes ten seconds and the trend shows on the Progress screen."}</p></div>`;
   const nSwaps = Object.keys(state.swaps).length;
   if (nSwaps) html += `<div class="card"><div class="row between"><h3>Injury swaps</h3><span class="chip acc">${nSwaps} active</span></div>
     <p class="focus" style="margin-top:6px">${Object.entries(state.swaps).slice(0,6).map(([k,v]) => `<b>${esc(v.name)}</b> instead of ${esc(v.orig || k)}`).join("<br>")}</p>
