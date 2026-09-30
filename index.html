@@ -1830,20 +1830,39 @@ function renderFood() {
   nameEl.oninput = () => { showHist(); showPicks(); autoFill(); updateCompare("ff-cmp", nameEl.value); };
   const onl = $("#ff-online"), onlRes = $("#ff-online-res");
   let lastOnline = [];
+  // Fill the form from one online result: name with its serving, calories, protein, cholesterol.
+  const useOnline = (r, auto) => {
+    const use = r.perServing && r.serving ? r.perServing : r.per100;
+    const label = r.perServing && r.serving ? (r.serving.label || "1 serving") : "100 g";
+    nameEl.value = `${r.brand ? r.brand + " " : ""}${r.name} (${label})`.slice(0, 120);
+    setBase(Math.round(use.kcal), use.prot == null ? null : Math.round(use.prot * 10) / 10, label, use.chol == null ? null : Math.round(use.chol));
+    autoFilled = false; showHist();
+    toast((auto ? "Filled in from " : "Switched to ") + r.src + (use.chol == null ? " — no cholesterol figure for this one" : "") + ". Set how many portions, then Add.");
+  };
+  // Which result is the best answer to what she typed: most of her words in the name, then a real serving size, then a cholesterol figure.
+  const bestOnline = (term, list) => {
+    const words = term.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+    let best = null, bs = -1;
+    list.forEach((r, i) => {
+      const t = (r.brand + " " + r.name).toLowerCase();
+      const hit = words.filter(w => t.includes(w)).length;
+      const sc = hit * 10 + (r.perServing && r.serving ? 3 : 0) + (r.per100.chol != null ? 2 : 0) + (r.src === "USDA" ? 1 : 0) - i * 0.1;
+      if (sc > bs) { bs = sc; best = r; }
+    });
+    return best;
+  };
   if (onl) onl.onclick = async () => {
     const term = nameEl.value.trim(); if (term.length < 2) { toast("Type the food or drink first"); nameEl.focus(); return; }
-    onl.disabled = true; onlRes.innerHTML = `<p class="focus">Searching USDA and Open Food Facts\u2026</p>`;
+    onl.disabled = true; onlRes.innerHTML = `<p class="focus">Searching USDA and Open Food Facts…</p>`;
     try {
       const d = await onlineSearch(term); lastOnline = d.results || [];
-      onlRes.innerHTML = (lastOnline.length ? `<div class="olist">${lastOnline.map((r, i) => onlineResultHTML(r, i, false)).join("")}</div>` : `<p class="focus">Nothing found for \u201c${esc(term)}\u201d. Try fewer words, or Search Google.</p>`)
+      const best = lastOnline.length ? bestOnline(term, lastOnline) : null;
+      if (best) useOnline(best, true);
+      const rest = lastOnline.filter(r => r !== best);
+      onlRes.innerHTML = (best ? `<p class="focus" style="margin-top:6px">Using <b>${esc(best.name)}</b>${best.brand ? " (" + esc(best.brand) + ")" : ""} from ${esc(best.src)}.${rest.length ? " Not the one? Tap another:" : ""}</p>` : `<p class="focus">Nothing found for “${esc(term)}”. Try fewer words, a brand name, or Make your own below.</p>`)
+        + (rest.length ? `<div class="olist">${rest.map(r => onlineResultHTML(r, lastOnline.indexOf(r), true)).join("")}</div>` : "")
         + (d.notes && d.notes.length ? `<p class="focus" style="margin-top:6px;font-size:12px">${esc(d.notes.join(". "))}.</p>` : "");
-      onlRes.querySelectorAll("[data-or]").forEach(b => b.onclick = () => {
-        const r = lastOnline[+b.dataset.or]; const use = r.perServing && r.serving ? r.perServing : r.per100;
-        const label = r.perServing && r.serving ? (r.serving.label || "1 serving") : "100 g";
-        nameEl.value = `${r.brand ? r.brand + " " : ""}${r.name} (${label})`.slice(0, 120);
-        setBase(Math.round(use.kcal), use.prot == null ? null : Math.round(use.prot * 10) / 10, label, use.chol == null ? null : Math.round(use.chol));
-        autoFilled = false; showHist(); onlRes.innerHTML = ""; toast("Filled in from " + r.src + " \u2014 set how many portions, then Add");
-      });
+      onlRes.querySelectorAll("[data-or]").forEach(b => b.onclick = () => { useOnline(lastOnline[+b.dataset.or], false); onlRes.innerHTML = ""; });
     } catch (e) { onlRes.innerHTML = `<p class="focus">Could not search: ${esc(e.message)}</p>`; }
     finally { onl.disabled = false; }
   };
@@ -2182,7 +2201,7 @@ function fmtNut(n) {
 function onlineResultHTML(r, i, withAdd) {
   const sv = r.perServing && r.serving ? `${esc(r.serving.label || "1 serving")}: ${fmtNut(r.perServing)}` : `per 100 g: ${fmtNut(r.per100)}`;
   return `<button type="button" class="orow" data-or="${i}"><span class="on">${esc(r.name)}${r.brand ? ` <em>${esc(r.brand)}</em>` : ""}</span>
-    <span class="od">${sv}</span><span class="os">${esc(r.src)}${withAdd ? " \u00b7 tap to add" : ""}</span></button>`;
+    <span class="od">${sv}</span><span class="os">${esc(r.src)}${withAdd ? " \u00b7 tap to use" : ""}</span></button>`;
 }
 
 
