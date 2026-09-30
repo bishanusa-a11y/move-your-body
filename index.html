@@ -392,7 +392,7 @@ td .del:hover{color:var(--accent);background:var(--accent-soft)}
 
 <script>
 /* ---------- constants & plan ---------- */
-const DEFAULT_SETTINGS = { startWeight: 55.0, targetLow: 50, targetHigh: 51, heightCm: 158, unit: "in", inchGoal: 1.5, stepGoal: 8000, kcalTarget: 0, birth: "1985-03-15", cholLimit: 300, fatTarget: 0 };
+const DEFAULT_SETTINGS = { startWeight: 55.0, targetLow: 50, targetHigh: 51, heightCm: 158, unit: "in", inchGoal: 1.5, stepGoal: 8000, kcalTarget: 0, birth: "1985-03-15", cholLimit: 300, fatTarget: 0, drinkMax: 8, drinkDays: 3, drinkSince: "2026-09-28" };
 const DOW = ["sun","mon","tue","wed","thu","fri","sat"];
 const DOW_LABEL = {mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
 const yt = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
@@ -1523,6 +1523,7 @@ function renderProgress() {
     ${mt("Lower belly","belly","2 in below the navel")}
     <div class="tile"><div class="eyebrow">BMI</div><div class="v num">${bmiNow ? bmiNow.toFixed(1) : "—"}<small> → ${bmiGoal.toFixed(1)}</small></div><div class="d">both inside the healthy 18.5–24.9 range</div></div>
     <div class="tile"><div class="eyebrow">Goal date</div><div class="v" style="font-size:18px">${P ? (P.reached ? "Reached ✓" : P.date.toLocaleDateString(undefined,{month:"short",day:"numeric"})) : "—"}</div><div class="d">${P && !P.reached ? "at " + P.basis : P && P.reached ? "maintain: weigh in weekly" : "needs a weigh-in"}</div></div>
+    ${(() => { const s = state.settings, W = drinkWeek(mondayOf(new Date())), H = drinkHistory(), met = H.filter(x => x.ok).length; return `<div class="tile"><div class="eyebrow">Drinks this week</div><div class="v num ${W.ok ? "down" : "up"}">${W.n}<small> of ${s.drinkMax ?? 8}</small></div><div class="d num">${W.days} of ${s.drinkDays ?? 3} days \u00b7 ${met} week${met === 1 ? "" : "s"} met, ${H.length - met} missed</div><div class="bar"><i style="width:${Math.min(100, W.n / Math.max(1, s.drinkMax ?? 8) * 100)}%;${W.ok ? "" : "background:var(--warn)"}"></i></div></div>`; })()}
   </div>
   <div class="card"><div class="row between"><h3>Weight</h3><span class="chip">${es.filter(e=>e.weight!=null).length} weigh-ins</span></div>
     <div class="chart-wrap" id="chartWeight" style="margin-top:8px"></div>
@@ -1535,6 +1536,7 @@ function renderProgress() {
     </div><p class="focus" style="margin-top:8px">Dashed line is your −${goalLen.toFixed(1)} ${unitLbl} goal for each. Measure in the same spot, same time of day, tape snug but not tight.</p></div>
   <div class="card"><div class="row between"><h3>Steps</h3><span class="chip">last 14 days</span></div><div class="chart-wrap" id="chartSteps" style="margin-top:8px"></div>
     <div class="legend"><span><i></i>steps a day</span><span><i class="proj"></i>goal ${(s.stepGoal||8000).toLocaleString()}</span></div></div>
+  <div class="card">${drinkGoalHTML()}</div>
   <div class="card"><h3>All entries</h3><div class="tbl" style="margin-top:8px">${es.length ? `<table><thead><tr><th>Date</th><th>kg</th><th>Arm</th><th>Thigh</th><th>Belly</th><th>Waist</th><th>Hips</th><th></th></tr></thead><tbody>` +
     [...es].reverse().map(e => `<tr><td>${fmtShort(e.date)}${e.note ? `<div class="tip" style="font-size:11px;color:var(--muted);white-space:normal">${esc(e.note)}</div>` : ""}</td><td class="num">${e.weight != null ? e.weight.toFixed(1) : "—"}</td><td class="num">${e.arm != null ? conv(e.arm).toFixed(1) : "—"}</td><td class="num">${e.thigh != null ? conv(e.thigh).toFixed(1) : "—"}</td><td class="num">${e.belly != null ? conv(e.belly).toFixed(1) : "—"}</td><td class="num">${e.waist != null ? conv(e.waist).toFixed(1) : "—"}</td><td class="num">${e.hips != null ? conv(e.hips).toFixed(1) : "—"}</td><td><button class="del" data-del="${e.id}" aria-label="Delete entry">✕</button></td></tr>`).join("") + `</tbody></table>` : `<div class="empty">No entries yet. Add one on the Log screen.</div>`}</div></div>`;
   $("#screen-progress").innerHTML = html;
@@ -1565,6 +1567,33 @@ const DRINKS = [
   ["Negroni", 190, 22, "high", "vermouth is wine-based"], ["Aperol spritz", 160, 11, "high", "prosecco, fermented"], ["Baileys, 50 ml", 160, 7, "mod", DM]
 ];
 function drinkTotals(items) { const d = (items || []).filter(i => i.meal === "Drinks"); return { kcal: d.reduce((a, i) => a + (i.kcal || 0), 0), std: Math.round(d.reduce((a, i) => a + (i.alc || 0), 0) / 10 * 10) / 10, n: d.length }; }
+// Her drinking goal: at most drinkMax drinks and drinkDays drinking days in a Monday-to-Sunday week.
+const isoOf = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+function mondayOf(d) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t; }
+function drinkWeek(mon) {
+  let n = 0, days = 0, kcal = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(mon.getDate() + i); const it = (state.food[isoOf(d)] || []).filter(x => x.meal === "Drinks"); const c = it.reduce((a, x) => a + (x.qty || 1), 0); n += c; kcal += it.reduce((a, x) => a + (x.kcal || 0), 0); if (c > 0) days++; }
+  const s = state.settings; n = Math.round(n * 10) / 10;
+  return { mon, n, days, kcal, ok: n <= (s.drinkMax ?? 8) && days <= (s.drinkDays ?? 3) };
+}
+// Every finished week since the goal started, oldest first.
+function drinkHistory() {
+  const out = []; const start = mondayOf(parseISO(state.settings.drinkSince || "2026-09-28")), cur = mondayOf(new Date());
+  for (let w = new Date(start); w < cur; w.setDate(w.getDate() + 7)) out.push(drinkWeek(new Date(w)));
+  return out;
+}
+// The goal panel, shown on Food and on Progress.
+function drinkGoalHTML() {
+  const s = state.settings, W = drinkWeek(mondayOf(new Date())), H = drinkHistory(), met = H.filter(x => x.ok).length;
+        return `<div class="row between"><h3>${state.tab === "progress" ? "Drinking goal" : "Drinks"}</h3><span class="chip ${W.ok ? "good" : "bad"}">${W.ok ? "within goal" : "over goal"}</span></div>
+      <div class="daytot" style="grid-template-columns:1fr 1fr;margin-top:10px">
+        <div><span>Drinks this week</span><b class="num ${W.n > (s.drinkMax ?? 8) ? "up" : ""}">${W.n} of ${s.drinkMax ?? 8}</b></div>
+        <div><span>Drinking days</span><b class="num ${W.days > (s.drinkDays ?? 3) ? "up" : ""}">${W.days} of ${s.drinkDays ?? 3}</b></div>
+        <div><span>Weeks met</span><b class="num down">${met}</b></div>
+        <div><span>Weeks missed</span><b class="num ${H.length - met ? "up" : ""}">${H.length - met}</b></div></div>
+      ${H.length ? `<div class="week" style="margin-top:10px;flex-wrap:wrap">${H.slice(-12).map(x => `<span class="${x.ok ? "done" : ""}" style="${x.ok ? "" : "background:var(--bad);border-color:var(--bad);color:#fff"}" title="Week of ${fmtShort(isoOf(x.mon))}: ${x.n} drinks on ${x.days} days">${x.ok ? "\u2713" : "\u2715"}</span>`).join("")}</div>` : ""}
+      <div class="focus num" style="margin-top:8px;font-size:12.5px">${W.kcal.toLocaleString()} kcal from drinks this week</div>`;
+}
 function weekDrinks() { let kcal = 0, std = 0; for (const d of weekSessions()) { const t = drinkTotals(state.food[d.iso]); kcal += t.kcal; std += t.std; } return { kcal, std: Math.round(std * 10) / 10 }; }
 // Quick picks: [name, kcal, protein g]
 
@@ -2010,7 +2039,7 @@ function renderFood() {
       <div class="full ai-out" id="ff-ai-out"></div>
     </form>
     ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${[r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul></details>` : ""}</div>
-    <div class="card" id="drinksCard"><div class="row between"><h3>Drinks</h3><span class="chip num">${(() => { const w = weekDrinks(); return "this week " + w.std + " std \u00b7 " + w.kcal.toLocaleString() + " kcal"; })()}</span></div>
+    <div class="card" id="drinksCard">${drinkGoalHTML()}
       <div class="joints" style="margin-top:10px">${DRINKS.map((d, i) => `<button type="button" data-drink="${i}" title="${esc(d[4])}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--${d[3] === "high" ? "bad" : "warn"})"></i>${esc(d[0])} <b class="num" style="font-weight:700">${d[1]}</b></button>`).join("")}</div>
       <p class="focus" style="margin-top:8px;font-size:12px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad)"></i> high histamine \u00a0 <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn)"></i> moderate</p></div>
     <div class="card" id="builderCard"><div class="row between"><h3>Make your own</h3><button class="btn sm ${builder.open ? "ghost" : "primary"}" type="button" id="bd-toggle">${builder.open ? "Close" : "Start"}</button></div>
@@ -2336,7 +2365,8 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     const d = DRINKS[+b.dataset.drink]; const day = foodDay(iso); const cur = day.find(i => i.meal === "Drinks" && i.name === d[0] && i.base);
     if (cur) { cur.qty = (cur.qty || 1) + 1; cur.kcal = Math.round(cur.base.kcal * cur.qty); cur.alc = Math.round(cur.base.alc * cur.qty * 10) / 10; state.food[iso] = [...day]; }
     else { const h = { level: d[3], why: d[4] }; state.food[iso] = [...day, { id: uid(), name: d[0], kcal: d[1], protein: 0, fat: 0, chol: 0, alc: d[2], qty: 1, base: { kcal: d[1], prot: 0, chol: 0, fat: 0, alc: d[2] }, meal: "Drinks", hist: h.level, why: h.why, t: Date.now() }]; }
-    persist("food"); toast(d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "")); renderFood();
+    persist("food"); const W = drinkWeek(mondayOf(parseISO(iso)));
+    toast(W.ok ? d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "") : "Over this week's goal: " + W.n + " drinks on " + W.days + " days"); renderFood();
   });
   document.querySelectorAll("[data-mydel]").forEach(b => b.onclick = () => { const r = state.recipes.find(x => x.id === b.dataset.mydel); if (!r || !confirm(`Remove \u201c${r.name}\u201d from my foods? Entries already logged stay.`)) return; state.recipes = state.recipes.filter(x => x !== r); persist("recipes"); renderFood(); });
   document.querySelectorAll("[data-fdel]").forEach(b => b.onclick = () => { state.food[iso] = foodDay(iso).filter(i => i.id !== b.dataset.fdel); if (!state.food[iso].length) delete state.food[iso]; persist("food"); renderFood(); });
@@ -2702,6 +2732,8 @@ function renderLog() {
         <label>Inch goal per area <span><small>in</small></span><input type="number" id="s-inch" step="0.5" min="0.5" max="4" value="${s.inchGoal}"></label>
         <label>Daily step goal<input type="number" id="s-steps" step="500" min="2000" max="30000" value="${s.stepGoal || 8000}"></label>
         <label>Fat target <span><small>g a day, blank = auto</small></span><input type="number" id="s-fat" step="1" min="20" max="250" value="${s.fatTarget || ""}" placeholder="auto ${Math.round(kcalTarget().target * 0.3 / 9)}"></label>
+        <label>Drinks <span><small>max a week</small></span><input type="number" id="s-dmax" step="1" min="0" max="50" value="${s.drinkMax == null ? 8 : s.drinkMax}"></label>
+        <label>Drinking days <span><small>max a week</small></span><input type="number" id="s-ddays" step="1" min="0" max="7" value="${s.drinkDays == null ? 3 : s.drinkDays}"></label>
         <label>Cholesterol limit <span><small>mg a day</small></span><input type="number" id="s-chol" step="10" min="50" max="1000" value="${s.cholLimit || 300}"></label>
         <label>Calorie target <span><small>kcal, blank = auto</small></span><input type="number" id="s-kcal" step="50" min="1000" max="4000" value="${s.kcalTarget || ""}" placeholder="auto ${kcalTarget().target}"></label>
         <div class="full"><button class="btn" type="submit">Save targets</button></div>
@@ -2824,7 +2856,7 @@ function renderLog() {
     if (await savePin(null, await pinDigest(cur))) { pin.required = false; pin.hash = null; pin.unlocked = true; rememberHash(null); toast("Lock turned off"); renderAll(); }
   };
   const plk = $("#p-lock"); if (plk) plk.onclick = () => lockNow();
-  $("#settingsForm").onsubmit = ev => { ev.preventDefault(); const lo = +$("#s-low").value, hi = +$("#s-high").value, h = +$("#s-height").value, ig = +$("#s-inch").value, sg = +$("#s-steps").value, kc = $("#s-kcal").value.trim() === "" ? 0 : +$("#s-kcal").value, cl = +$("#s-chol").value || 300, ft = Math.max(0, +$("#s-fat").value || 0); if (!(lo > 0 && hi >= lo && h > 100 && ig > 0 && sg >= 1000 && (kc === 0 || kc >= 1000))) { toast("Check the target numbers"); return; } Object.assign(state.settings, { targetLow: lo, targetHigh: hi, heightCm: h, inchGoal: ig, stepGoal: sg, kcalTarget: kc, cholLimit: cl, fatTarget: ft }); persist("settings"); toast("Targets saved"); renderAll(); };
+  $("#settingsForm").onsubmit = ev => { ev.preventDefault(); const lo = +$("#s-low").value, hi = +$("#s-high").value, h = +$("#s-height").value, ig = +$("#s-inch").value, sg = +$("#s-steps").value, kc = $("#s-kcal").value.trim() === "" ? 0 : +$("#s-kcal").value, cl = +$("#s-chol").value || 300, ft = Math.max(0, +$("#s-fat").value || 0), dm = Math.max(0, +$("#s-dmax").value || 0), dd = Math.min(7, Math.max(0, +$("#s-ddays").value || 0)); if (!(lo > 0 && hi >= lo && h > 100 && ig > 0 && sg >= 1000 && (kc === 0 || kc >= 1000))) { toast("Check the target numbers"); return; } Object.assign(state.settings, { targetLow: lo, targetHigh: hi, heightCm: h, inchGoal: ig, stepGoal: sg, kcalTarget: kc, cholLimit: cl, fatTarget: ft, drinkMax: dm, drinkDays: dd }); persist("settings"); toast("Targets saved"); renderAll(); };
 }
 
 /* ---------- PIN lock ---------- */
