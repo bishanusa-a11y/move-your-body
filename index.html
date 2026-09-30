@@ -794,7 +794,13 @@ async function connectApi() {
     if (d.empty) { for (const k of ["entries","sessions","steps","food","swaps","photos","settings"]) persist(k); }
     else { for (const k of pending) delete d[k]; applyRemote(d); for (const k of pending) persist(k); }
     document.addEventListener("visibilitychange", async () => { if (document.visibilityState === "visible" && state.api) { try { const rr = await fetch("/api/state", { cache: "no-store", headers: pinHeaders() }); if (rr.ok) { const dd = await rr.json(); if (!dd.empty) applyRemote(dd); } } catch {} } });
-  } catch { setSync("err", "offline — showing this device's copy"); state.api = "/api/state"; window.addEventListener("online", () => connectApi(), { once: true }); }
+  } catch {
+    setSync("err", "can't reach the Mac \u2014 showing this phone's copy");
+    // The Mac copy only updates and syncs while the Mac is awake and this phone is on Tailscale: say so where it is seen.
+    const bar = $("#installBar");
+    if (bar) { bar.hidden = false; bar.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M12 8v7m0 0 3-3m-3 3-3-3"/></svg><div style="flex:1;min-width:0"><div class="t">Can't reach your Mac</div><div class="d">This copy lives on your Mac. To update it or sync, turn on <b>Tailscale</b> on this phone, make sure the Mac is awake, then close this app and open it again. For a copy that never needs the Mac, install <a href="https://bishanusa-a11y.github.io/move-your-body/" target="_blank" rel="noopener">the hosted version</a>.</div></div><button class="x" type="button" id="hideInstall" aria-label="Dismiss">\u00d7</button>`; const hx = $("#hideInstall"); if (hx) hx.onclick = () => { bar.hidden = true; }; }
+    state.api = "/api/state"; window.addEventListener("online", () => connectApi(), { once: true });
+  }
 }
 async function connectDb() {
   let db = null;
@@ -2433,8 +2439,8 @@ function renderLog() {
     </div>
     ${framed ? "" : `<div class="card"><h3>Your data</h3>
       <p class="focus" style="margin-top:4px">${STATIC ? "Everything this app knows is stored on this phone. Back it up here, or bring in your data from the Mac copy." : "Download everything as one file, or bring in a file from another copy of the app."}</p>
-      <div class="camerarow" style="margin-top:10px"><button class="btn" type="button" id="dx-export">Download my data</button><button class="btn" type="button" id="dx-import">Import a file</button><input type="file" id="dx-file" accept="application/json,.json" hidden></div>
-      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">Trainer sessions, routines, recipes, food log, weigh-ins, steps and settings.</p></div>`}
+      <div class="camerarow" style="margin-top:10px">${STATIC ? `<button class="btn primary" type="button" id="dx-mac">Get my data from the Mac</button>` : ""}<button class="btn" type="button" id="dx-export">Download my data</button><button class="btn" type="button" id="dx-import">Import a file</button><input type="file" id="dx-file" accept="application/json,.json" hidden></div>
+      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "With the Mac awake and Tailscale on, the first button copies everything over: trainer sessions, routines, recipes, food log, weigh-ins, steps and settings. Nothing already here is removed." : "Trainer sessions, routines, recipes, food log, weigh-ins, steps and settings."}</p></div>`}
     ${STATIC ? `<div class="card"><h3>Food database key</h3><p class="focus" style="margin-top:4px">Online search uses a shared USDA demo key with a small hourly limit. A free personal key from api.data.gov removes it.</p>
       <form class="form" id="usdaForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>USDA key<input type="text" id="s-usda" autocomplete="off" value="${esc(state.settings.usdaKey || "")}" placeholder="paste it here"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>` : ""}
     <div class="card"><h3>Measuring guide</h3><div class="guide" style="margin-top:10px">
@@ -2467,10 +2473,8 @@ function renderLog() {
   };
   const dxI = $("#dx-import"), dxF = $("#dx-file");
   if (dxI) dxI.onclick = () => dxF.click();
-  if (dxF) dxF.onchange = async () => {
-    const f = dxF.files && dxF.files[0]; dxF.value = ""; if (!f) return;
-    let d; try { d = JSON.parse(await f.text()); } catch { toast("That file is not readable"); return; }
-    if (!d || d.app !== "Move Your Body") { toast("That is not a Move Your Body file"); return; }
+  const importDump = d => {
+    if (!d || d.app !== "Move Your Body") { toast("That is not a Move Your Body file"); return false; }
     const has = k => d[k] && (Array.isArray(d[k]) ? d[k].length : Object.keys(d[k]).length);
     const mergeDays = (mine, theirs) => { const out = { ...mine }; for (const [day, items] of Object.entries(theirs || {})) { const ids = new Set((out[day] || []).map(i => i.id)); out[day] = [...(out[day] || []), ...items.filter(i => !ids.has(i.id))]; } return out; };
     const byId = (mine, theirs, key) => { const ids = new Set(mine.map(x => x[key])); return [...mine, ...(theirs || []).filter(x => !ids.has(x[key]))]; };
@@ -2487,7 +2491,24 @@ function renderLog() {
     if (d.routines) state.routines = byId(state.routines, d.routines, "id");
     if (d.settings) state.settings = { ...DEFAULT_SETTINGS, ...d.settings, ...state.settings };
     for (const k of ["entries","sessions","steps","food","swaps","photos","workouts","picks","recipes","routines","settings"]) persist(k);
-    toast("Imported"); renderAll();
+    toast(`Imported \u2014 ${state.mywork.length} trainer sessions, ${Object.values(state.food).reduce((a, v) => a + v.length, 0)} food entries`); renderAll(); return true;
+  };
+  if (dxF) dxF.onchange = async () => {
+    const f = dxF.files && dxF.files[0]; dxF.value = ""; if (!f) return;
+    let d; try { d = JSON.parse(await f.text()); } catch { toast("That file is not readable"); return; }
+    importDump(d);
+  };
+  const dxM = $("#dx-mac");
+  if (dxM) dxM.onclick = async () => {
+    const base = (state.settings.macUrl || "https://chews-macbook-air.tailadc994.ts.net:11000").replace(/\/+$/, "");
+    dxM.disabled = true; const note = $("#dx-note"); note.textContent = "Asking your Mac\u2026";
+    try {
+      const r = await fetch(base + "/api/export", { cache: "no-store" });
+      if (!r.ok) throw new Error("the Mac answered " + r.status);
+      const d = await r.json(); if (importDump(d)) note.textContent = "Done. Your data from the Mac is now on this phone.";
+    } catch (e) {
+      note.textContent = "Could not reach the Mac. It must be awake, and this phone must have Tailscale on. Then try again. (" + esc(e.message) + ")";
+    } finally { dxM.disabled = false; }
   };
   const uf = $("#usdaForm"); if (uf) uf.onsubmit = ev => { ev.preventDefault(); state.settings.usdaKey = $("#s-usda").value.trim(); persist("settings"); toast(state.settings.usdaKey ? "Key saved" : "Using the shared demo key"); };
   const pf = $("#pinForm");
