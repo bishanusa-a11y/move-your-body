@@ -849,6 +849,64 @@ function projection() {
   const d = new Date(); d.setDate(d.getDate() + Math.round(weeks * 7));
   return { date: d, weeks, basis };
 }
+/* ---------- calories burned: MET estimates ---------- */
+function bodyKg() { return (latest("weight") || {}).weight || state.settings.startWeight || 55; }
+// Rough intensity per move (MET). Light-weight circuits sit around 4-5; jumping work near 8; a treadmill run near 9.
+function exerciseMET(name) {
+  const n = (name || "").toLowerCase();
+  if (/run|interval|jog/.test(n)) return 9;
+  if (/jump|burpee|skater|climber|hiit|jack|sprint/.test(n)) return 8;
+  if (/incline/.test(n)) return 6;
+  if (/walk|march|step-up|step up/.test(n)) return 4;
+  if (/swing|thruster|snatch|clean|turkish|get.?up|renegade|farmer|carry/.test(n)) return 6;
+  if (/squat|lunge|deadlift|rdl|hinge|bridge|thrust|press|row|pull|curl|raise|fly|kickback|dip|push.?up|extension|hydrant|kick|clamshell|pump/.test(n)) return 4.5;
+  if (/plank|crunch|twist|hollow|dead bug|bird dog|leg raise|flutter|scissor|tap|sit.?up|v.?up|hundred|pilates|roll|superman|windmill|abs|core|oblique/.test(n)) return 3.2;
+  if (/stretch|yoga|foam|rest|hydrate|prep|cobra|child/.test(n)) return 2.3;
+  return 4;
+}
+function kcalFor(name, minutes) { return exerciseMET(name) * bodyKg() * (minutes / 60); }
+// A set of 12-20 reps with its rest is about 1.25 minutes.
+function setsOf(e) { if (Array.isArray(e.s) && e.s.length) return e.s.length; const m = /^(\d+)\s*[x×]/i.exec(e.reps || ""); return m ? Number(m[1]) : 3; }
+function ensureChecks() { const iso = todayISO(); if (!checks || checks.date !== iso) checks = { date: iso, on: {} }; }
+// Every move that could be ticked today, with its key, minutes and kcal.
+function todaysMoves() {
+  ensureChecks();
+  const iso = todayISO(), key = DOW[new Date().getDay()], out = [];
+  const picked = state.picks[iso] ? sessionById(state.picks[iso]) : null;
+  const addSession = x => { (x.b || []).forEach((b, bi) => (b.x || []).forEach((e, i) => { const mins = setsOf(e) * 1.25; out.push({ key: "my|" + x.id + "|" + bi + "|" + i, name: e.n, mins, kcal: kcalFor(e.n, mins), sid: x.id }); })); };
+  if (picked) addSession(picked);
+  else if (!PLAN[key].rest) {
+    const sess = buildSession(key, state.duration || 30, weekIndex());
+    sess.blocks.forEach((b, bi) => b.items.forEach((it, i) => { const mins = b.tread ? b.min : b.min / b.items.length; const [nm] = applySwap(it); out.push({ key: bi + "|" + b.name + "|" + i, name: nm, mins, kcal: kcalFor(nm, mins), sid: null }); }));
+  }
+  for (const x of mySessions()) if (!picked || x.id !== picked.id) addSession(x);
+  for (const r of state.routines || []) { const x = routineAsSession(r); if (!picked || x.id !== picked.id) addSession(x); }
+  return out;
+}
+function burnedToday() {
+  const iso = todayISO(); const moves = todaysMoves();
+  const ticked = moves.filter(m => checks.on[m.key]);
+  let workout = ticked.reduce((a, m) => a + m.kcal, 0);
+  const done = state.sessions[iso];
+  if (done && done.kcal && workout < done.kcal) workout = done.kcal;   // marked done as a whole
+  const steps = state.steps[iso] || 0;
+  const walking = steps * bodyKg() * 0.00038;                          // about 0.5 kcal per kg per km, 1300 steps per km
+  return { workout: Math.round(workout), moves: ticked.length, walking: Math.round(walking), steps, total: Math.round(workout + walking), doneTitle: done ? done.title : null };
+}
+function sessionKcalEstimate(x, blocksFromPlan) {
+  if (blocksFromPlan) return Math.round(blocksFromPlan.reduce((a, b) => a + b.items.reduce((c, it) => { const mins = b.tread ? b.min : b.min / b.items.length; return c + kcalFor(applySwap(it)[0], mins); }, 0), 0));
+  return Math.round(sessExercises(x).reduce((a, e) => a + kcalFor(e.n, setsOf(e) * 1.25), 0));
+}
+function burnedHTML(compact) {
+  const B = burnedToday();
+  if (compact) return `<span class="chip ${B.total ? "good" : ""} num" data-burned="chip">${B.total.toLocaleString()} kcal burned today</span>`;
+  return `<div data-burned="card"><div class="row between"><h3>Burned today</h3><span class="chip ${B.total ? "good" : ""} num">${B.total.toLocaleString()} kcal</span></div>
+    <div class="daytot" style="grid-template-columns:1fr 1fr;margin-top:10px">
+      <div><span>Workouts</span><b class="num">${B.workout.toLocaleString()} kcal</b><span style="text-transform:none;letter-spacing:0;font-weight:500">${B.doneTitle ? esc(B.doneTitle) : B.moves ? B.moves + " move" + (B.moves === 1 ? "" : "s") + " ticked" : "tick moves as you finish them"}</span></div>
+      <div><span>Walking</span><b class="num">${B.walking.toLocaleString()} kcal</b><span style="text-transform:none;letter-spacing:0;font-weight:500">${B.steps ? B.steps.toLocaleString() + " steps" : "log your steps below"}</span></div></div>
+    <p class="focus" style="margin-top:8px;font-size:12.5px">Estimates from typical effort for each move and your weight. Your daily calorie target already assumes five sessions a week, so treat this as a progress figure, not extra food to eat back.</p></div>`;
+}
+function refreshBurned() { document.querySelectorAll("[data-burned]").forEach(el => { el.outerHTML = burnedHTML(el.dataset.burned === "chip"); }); }
 function weekSessions() {
   const t = parseISO(todayISO()); const dow = (t.getDay() + 6) % 7; // Mon=0
   const mon = new Date(t); mon.setDate(t.getDate() - dow);
@@ -937,6 +995,7 @@ function renderToday() {
   }
   }
 
+  html += `<div class="card">${burnedHTML(false)}</div>`;
   const stepsToday = state.steps[iso]; const sg = state.settings.stepGoal || 8000;
   const wk = week.map(d => state.steps[d.iso]).filter(v => v != null);
   const wkAvg = wk.length ? Math.round(wk.reduce((a,b)=>a+b,0) / wk.length) : null;
@@ -963,10 +1022,11 @@ function renderToday() {
 
   document.querySelectorAll("[data-dur]").forEach(b => b.onclick = () => { state.duration = +b.dataset.dur; lsSet("sculpt.duration", state.duration); renderToday(); });
   document.querySelectorAll("[data-swap]").forEach(b => b.onclick = () => openSwap(b.dataset.swap));
-  document.querySelectorAll("[data-chk]").forEach(c => c.onchange = () => { checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks); c.closest("li").classList.toggle("done", c.checked); });
+  document.querySelectorAll("[data-chk]").forEach(c => c.onchange = () => { ensureChecks(); checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks); c.closest("li").classList.toggle("done", c.checked); refreshBurned(); });
   const md = $("#markDone"); if (md && !done) md.onclick = () => {
-    state.sessions[iso] = picked ? { day: key, minutes: dur, title: picked.isRoutine ? "My routine: " + picked.name : "Trainer session (" + fmtSessDate(picked.date) + ")", mine: picked.id } : { day: key, minutes: day.rest ? 30 : dur, title: day.title };
-    persist("sessions"); toast("Nice work \u2014 " + state.sessions[iso].title + " logged"); renderAll(); };
+    const kcal = picked ? sessionKcalEstimate(picked) : sessionKcalEstimate(null, shownBlocks);
+    state.sessions[iso] = picked ? { day: key, minutes: dur, title: picked.isRoutine ? "My routine: " + picked.name : "Trainer session (" + fmtSessDate(picked.date) + ")", mine: picked.id, kcal } : { day: key, minutes: day.rest ? 30 : dur, title: day.title, kcal };
+    persist("sessions"); toast("Nice work \u2014 " + state.sessions[iso].title + " logged, about " + kcal + " kcal"); renderAll(); };
   document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => pickSession(b.dataset.pick));
   const up = $("#unpick"); if (up) up.onclick = () => { delete state.picks[iso]; persist("picks"); renderAll(); };
   const sn = $("#sugNext"); if (sn) sn.onclick = () => { state.sugOffset = (state.sugOffset || 0) + 1; renderToday(); };
@@ -1209,7 +1269,9 @@ function drawAlts() {
 /* ---------- render: plan ---------- */
 function renderPlan() {
   const key = DOW[new Date().getDay()]; const wi = weekIndex();
-  let html = `<div class="card"><div class="row between"><h2>Your 5-day week</h2><span class="chip acc">${WEEK_NAME[wi]}</span></div>
+  ensureChecks();
+  const isoP = todayISO(), doneP = state.sessions[isoP];
+  let html = `<div class="card"><div class="row between"><h2>Your 5-day week</h2><div class="row">${burnedHTML(true)}<span class="chip acc">${WEEK_NAME[wi]}</span></div></div>
     <p class="focus" style="margin-top:6px">Each day draws two circuits from a pool of four, and the pair changes every week on a four-week rotation, so you do not repeat the same session for a month. No warm-up or cool-down blocks: take the first round of the first circuit easy instead.</p>
     <div class="timing"><div><b>15 min</b>One circuit, 2 rounds</div><div><b>30 min</b>Two circuits, 2 rounds each</div><div><b>45 min</b>+ treadmill to fill the time</div><div><b>60 min</b>+ an extra round of each</div></div>
     <div class="row" style="margin-top:12px;gap:6px">${WEEK_NAME.map((w,i) => `<button class="btn sm ${i===state.planWeek?"primary":""}" data-wk="${i}">${w}</button>`).join("")}</div>
@@ -1218,10 +1280,16 @@ function renderPlan() {
     const d = PLAN[k]; const sess = buildSession(k, 60, state.planWeek);
     html += `<details class="day" ${k===key?"open":""}><summary><div class="dow ${d.rest?"rest":""}">${DOW_LABEL[k]}</div><div><div class="sum-t">${d.title}</div><div class="sum-d">${d.rest ? d.focus.split(".")[0] : "15–60 min · " + d.focus.split(".")[0]}</div></div><span class="arrow">\u25be</span></summary>
       <div class="body">${d.kit ? `<p class="focus" style="margin-top:12px"><b>Kit:</b> ${d.kit}</p>` : ""}`;
-    for (const b of sess.blocks) {
-      html += `<div class="block"><header><span class="t">${b.name}${b.again ? " · extra round" : ""}</span><span class="m">${b.tread ? "45 and 60-min sessions" : b.again ? "60-min session only" : b.min + " min"}</span></header><ul class="ex">` +
-        b.items.map(it => { const [nm, reps, tip, isSwap] = applySwap(it); return `<li class="${isSwap?"swapped":""}" style="grid-template-columns:1fr auto"><div><div class="n" data-ex="${esc(nm)}" data-exr="${esc(reps)}" data-ext="${esc(tip || "")}">${esc(nm)}</div>${tip ? `<div class="tip">${esc(tip)}</div>` : ""}</div><div class="r">${esc(reps)}</div></li>`; }).join("") + `</ul></div>`;
-    }
+    // Today's own day is tickable here too, with the same ticks as the Today screen.
+    const liveDay = k === key && !d.rest && state.planWeek === wi && !state.picks[isoP];
+    const liveSess = liveDay ? buildSession(k, state.duration || 30, wi) : null;
+    const blocks = liveDay ? liveSess.blocks : sess.blocks;
+    blocks.forEach((b, bi) => {
+      html += `<div class="block"><header><span class="t">${b.name}${b.again ? " · extra round" : ""}</span><span class="m">${liveDay ? (b.tread ? b.min + " min" : b.min + " min · " + b.rounds + " round" + (b.rounds > 1 ? "s" : "")) : b.tread ? "45 and 60-min sessions" : b.again ? "60-min session only" : b.min + " min"}</span></header><ul class="ex">` +
+        b.items.map((it, i) => { const [nm, reps, tip, isSwap] = applySwap(it); const id = bi + "|" + b.name + "|" + i; const on = liveDay && !!checks.on[id];
+          return `<li class="${isSwap?"swapped":""} ${on?"done":""}" ${liveDay ? "" : 'style="grid-template-columns:1fr auto"'}>${liveDay ? `<input type="checkbox" id="pchk-${bi}-${i}" data-chk="${id}" ${on?"checked":""} aria-label="Done: ${esc(nm)}">` : ""}<div><div class="n" data-ex="${esc(nm)}" data-exr="${esc(reps)}" data-ext="${esc(tip || "")}">${esc(nm)}</div>${tip ? `<div class="tip">${esc(tip)}</div>` : ""}</div><div class="r">${esc(reps)}</div>${liveDay ? `<button class="swap" data-swap="${esc(it[0])}" title="Swap this exercise" aria-label="Swap ${esc(nm)}"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></button>` : ""}</li>`; }).join("") + `</ul></div>`;
+    });
+    if (liveDay) html += `<div class="camerarow" style="margin-top:12px">${doneP ? `<span class="chip good">\u2713 done today \u00b7 ${doneP.kcal ? doneP.kcal + " kcal" : ""}</span>` : `<button class="btn primary sm" type="button" id="plan-mdone">Mark today's session done</button>`}<span class="focus" style="font-size:12.5px">Tick each move as you finish it; the burned figure updates.</span></div>`;
     if (d.videos.length) html += `<div class="block"><header><span class="t">Follow-along videos</span><span class="m">opens YouTube search</span></header><div class="vids">${d.videos.map(v => `<a href="${v[2]}" target="_blank" rel="noopener">${v[0]}<span class="who">${v[3]} min \u00b7 ${v[1]} \u2197</span></a>`).join("")}</div></div>`;
     html += `</div></details>`;
   }
@@ -1230,13 +1298,13 @@ function renderPlan() {
     <p class="focus" style="margin-top:6px">Make your own list from the recommended moves, your trainer's moves and the swap library, with your own sets and reps. Tap any move's name, anywhere in the app, for pictures and a video.</p>
     <div class="camerarow" style="margin-top:10px"><button class="btn sm" type="button" id="rt-copy-today">Start from today's plan</button></div>
     ${rts.length ? `<div class="plan" style="margin-top:12px">${rts.map(r => `<details class="day"><summary><div class="dow" style="font-size:18px">\u2605</div><div><div class="sum-t">${esc(r.name)}</div><div class="sum-d">${r.items.length} moves \u00b7 ${esc(r.items.slice(0, 3).map(i => i.n).join(", "))}</div></div><span class="arrow">\u25be</span></summary>
-      <div class="body">${sessionHTML(routineAsSession(r), false)}<div class="camerarow" style="margin-top:12px"><button class="btn primary sm" type="button" data-pick="r:${r.id}">Do this today</button><button class="btn sm" type="button" data-rtedit="${r.id}">Edit</button><button class="btn ghost sm" type="button" data-rtdel="${r.id}">Delete</button></div></div></details>`).join("")}</div>` : ""}`;
+      <div class="body">${sessionHTML(routineAsSession(r), true)}<div class="camerarow" style="margin-top:12px"><button class="btn primary sm" type="button" data-pick="r:${r.id}">Do this today</button><button class="btn sm" type="button" data-mdone="r:${r.id}">Mark done today</button><button class="btn sm" type="button" data-rtedit="${r.id}">Edit</button><button class="btn ghost sm" type="button" data-rtdel="${r.id}">Delete</button></div></div></details>`).join("")}</div>` : ""}`;
   const mine = mySessions();
   if (mine.length) {
     html += `</div><div class="card" id="mySessions"><div class="row between"><h2>Your trainer sessions</h2><span class="chip acc">${mine.length}</span></div>
       <p class="focus" style="margin-top:6px">${esc(state.myworkSource || "Imported from your workout sheet")}. Open any one to see the moves, weights and sets, and tap <b>Do this today</b> to use it instead of the day's plan. Your moves also appear in the swap list, marked <b>yours</b>.</p>
       <div class="plan" style="margin-top:12px">${mine.map(x => `<details class="day"><summary><div class="dow" style="font-size:11px;line-height:1.15;text-align:center">${esc(parseISO(x.date).toLocaleDateString(undefined, { day: "numeric", month: "short" }))}<br><span style="font-weight:600;opacity:.75">${parseISO(x.date).getFullYear()}</span></div><div><div class="sum-t">${esc(sessExercises(x).slice(0, 3).map(e => e.n).join(", "))}</div><div class="sum-d">${sessionSummary(x)}</div></div><span class="arrow">\u25be</span></summary>
-        <div class="body">${sessionHTML(x, false)}<div class="camerarow" style="margin-top:12px"><button class="btn primary sm" data-pick="${x.id}">Do this today</button><button class="btn sm" type="button" data-rtcopy="${x.id}">Copy to my routines</button></div></div></details>`).join("")}</div>`;
+        <div class="body">${sessionHTML(x, true)}<div class="camerarow" style="margin-top:12px"><button class="btn primary sm" data-pick="${x.id}">Do this today</button><button class="btn sm" type="button" data-mdone="${x.id}">Mark done today</button><button class="btn sm" type="button" data-rtcopy="${x.id}">Copy to my routines</button></div></div></details>`).join("")}</div>`;
   }
   html += `</div><div class="card"><h3>Creators to follow</h3><p class="focus" style="margin-top:4px">All female-led, tone-focused, mostly light or no weights.</p><div class="vids">
     ${[["kayla_itsines","Kayla Itsines \u00b7 Sweat — 28-min circuits"],["madfit.ig","MadFit — arms, legs, no-bulk toning"],["pamela_rf","Pamela Reif — 10–20 min sets"],["heatherrobertson","Heather Robertson — light-dumbbell toning"],["movewithnicole","Move With Nicole — Pilates thighs & core"],["lillysabri","Lilly Sabri — lower belly & legs"],["blogilates","Blogilates — Pilates abs"],["growingannanas","growingannanas — full body"]].map(c => `<a href="${ig(c[0])}" target="_blank" rel="noopener">${c[1]}<span class="who">@${c[0]} \u2197</span></a>`).join("")}
@@ -1244,6 +1312,10 @@ function renderPlan() {
   $("#screen-plan").innerHTML = html;
   document.querySelectorAll("[data-wk]").forEach(b => b.onclick = () => { state.planWeek = +b.dataset.wk; renderPlan(); });
   document.querySelectorAll("#screen-plan [data-pick]").forEach(b => b.onclick = () => pickSession(b.dataset.pick));
+  document.querySelectorAll("#screen-plan [data-chk]").forEach(c => c.onchange = () => { ensureChecks(); checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks); c.closest("li").classList.toggle("done", c.checked); refreshBurned(); });
+  document.querySelectorAll("#screen-plan [data-swap]").forEach(b => b.onclick = () => openSwap(b.dataset.swap));
+  const pmd = $("#plan-mdone"); if (pmd) pmd.onclick = () => { const kcal = sessionKcalEstimate(null, buildSession(key, state.duration || 30, wi).blocks); state.sessions[isoP] = { day: key, minutes: state.duration || 30, title: PLAN[key].title, kcal }; persist("sessions"); toast("Logged " + PLAN[key].title + ", about " + kcal + " kcal"); renderAll(); };
+  document.querySelectorAll("[data-mdone]").forEach(b => b.onclick = () => { const x = sessionById(b.dataset.mdone); if (!x) return; const kcal = sessionKcalEstimate(x); state.picks[isoP] = x.id; state.sessions[isoP] = { day: key, minutes: state.duration || 30, title: x.isRoutine ? "My routine: " + x.name : "Trainer session (" + fmtSessDate(x.date) + ")", mine: x.id, kcal }; persist("picks"); persist("sessions"); toast("Logged, about " + kcal + " kcal"); renderAll(); });
   const rn = $("#rt-new"); if (rn) rn.onclick = () => openRoutineEditor(null);
   const rct = $("#rt-copy-today"); if (rct) rct.onclick = () => {
     let k = DOW[new Date().getDay()]; if (PLAN[k].rest) k = "mon";
@@ -1718,6 +1790,7 @@ function renderFood() {
       <div><span>Target</span><b class="num">${K.target.toLocaleString()} kcal</b></div>
       <div><span>${overBy > 0 ? "Over by" : "Still left"}</span><b class="num ${overBy > 0 ? "up" : "down"}">${Math.abs(overBy).toLocaleString()} kcal</b></div>
       <div><span>Protein</span><b class="num">${Math.round(prot)} of ${K.protein} g</b></div>
+      ${iso === todayISO() ? `<div><span>Burned today</span><b class="num">${burnedToday().total.toLocaleString()} kcal</b></div><div><span>Net</span><b class="num">${(eaten - burnedToday().total).toLocaleString()} kcal</b></div>` : ""}
       <div><span>Cholesterol</span><b class="num ${chol > cholLimit ? "up" : ""}">${Math.round(chol)} of ${cholLimit} mg</b></div>
       <div><span>No cholesterol figure</span><b class="num">${cholUnknown} item${cholUnknown === 1 ? "" : "s"}</b></div>
     </div>
