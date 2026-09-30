@@ -1552,7 +1552,20 @@ function renderProgress() {
 }
 
 /* ---------- food: calories & histamine ---------- */
-const MEALS = ["Breakfast","Lunch","Dinner","Snack"];
+const MEALS = ["Breakfast","Lunch","Dinner","Snack","Drinks"];
+// Alcohol quick-adds: [name, kcal, grams of alcohol, histamine level, why]. One standard drink is 10 g of alcohol.
+// Fermented drinks carry histamine themselves; distilled ones carry little but all alcohol slows the enzyme that clears it.
+const DH = "fermented, high in histamine", DM = "alcohol slows histamine breakdown";
+const DRINKS = [
+  ["Beer, 330 ml", 142, 13, "high", DH], ["Beer, pint", 245, 22, "high", DH], ["Light beer, 330 ml", 103, 11, "high", DH], ["Cider, 330 ml", 150, 13, "high", DH],
+  ["Red wine, 150 ml", 125, 16, "high", "the highest-histamine wine"], ["White wine, 150 ml", 120, 15, "mod", "less histamine than red"], ["Ros\u00e9, 150 ml", 125, 14, "mod", "less histamine than red"], ["Champagne, 125 ml", 95, 12, "high", DH],
+  ["Spirit, 30 ml shot", 65, 9.5, "mod", DM], ["Whisky highball", 70, 9.5, "mod", DM], ["Vodka soda", 70, 9.5, "mod", DM], ["Gin & tonic", 170, 9.5, "mod", DM], ["Rum & coke", 150, 9.5, "mod", DM],
+  ["Soju, shot", 65, 7, "mod", DM], ["Soju, bottle", 400, 48, "mod", DM], ["Sake, 180 ml", 240, 21, "high", DH],
+  ["Margarita", 200, 18, "high", "lime triggers histamine release"], ["Mojito", 170, 13, "high", "lime triggers histamine release"], ["Espresso martini", 210, 17, "mod", DM],
+  ["Negroni", 190, 22, "high", "vermouth is wine-based"], ["Aperol spritz", 160, 11, "high", "prosecco, fermented"], ["Baileys, 50 ml", 160, 7, "mod", DM]
+];
+function drinkTotals(items) { const d = (items || []).filter(i => i.meal === "Drinks"); return { kcal: d.reduce((a, i) => a + (i.kcal || 0), 0), std: Math.round(d.reduce((a, i) => a + (i.alc || 0), 0) / 10 * 10) / 10, n: d.length }; }
+function weekDrinks() { let kcal = 0, std = 0; for (const d of weekSessions()) { const t = drinkTotals(state.food[d.iso]); kcal += t.kcal; std += t.std; } return { kcal, std: Math.round(std * 10) / 10 }; }
 // Quick picks: [name, kcal, protein g]
 
 // Cuisine-tagged dishes: naming the cuisine changes the answer (a Chinese radish soup is not a Japanese one).
@@ -1960,6 +1973,7 @@ function renderFood() {
       <div><span>Fat</span><b class="num ${fat > fatGoal ? "up" : ""}">${Math.round(fat)} of ${fatGoal} g</b></div>
       ${iso === todayISO() ? `<div><span>Burned today</span><b class="num">${burnedToday().total.toLocaleString()} kcal</b></div><div><span>Net</span><b class="num">${(eaten - burnedToday().total).toLocaleString()} kcal</b></div>` : ""}
       <div><span>Cholesterol</span><b class="num ${chol > cholLimit ? "up" : ""}">${Math.round(chol)} of ${cholLimit} mg</b></div>
+      ${drinkTotals(items).n ? `<div><span>Alcohol</span><b class="num">${drinkTotals(items).kcal.toLocaleString()} kcal</b></div><div><span>Standard drinks</span><b class="num ${drinkTotals(items).std > 2 ? "up" : ""}">${drinkTotals(items).std}</b></div>` : ""}
       <div><span>Bad cholesterol</span><b class="num ${ldlDay === "high" ? "up" : ldlDay === "low" ? "down" : ""}">${ldlDay === "high" ? "High" : ldlDay === "mod" ? "Medium" : "Low"}</b></div>
     </div>
     <p class="focus" style="margin-top:10px;font-size:12.5px">${highs ? `<span class="chip bad">${highs} high histamine</span> ` : ""}${mods ? `<span class="chip warn">${mods} moderate</span> ` : ""}${!highs && !mods && items.length ? `<span class="chip good">nothing high in histamine today</span> ` : ""}${overBy > 0 ? "Over target today." : eaten < K.target * 0.6 ? "Well under target." : "On track."}</p>`;
@@ -1996,6 +2010,9 @@ function renderFood() {
       <div class="full ai-out" id="ff-ai-out"></div>
     </form>
     ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${[r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul></details>` : ""}</div>
+    <div class="card" id="drinksCard"><div class="row between"><h3>Drinks</h3><span class="chip num">${(() => { const w = weekDrinks(); return "this week " + w.std + " std \u00b7 " + w.kcal.toLocaleString() + " kcal"; })()}</span></div>
+      <div class="joints" style="margin-top:10px">${DRINKS.map((d, i) => `<button type="button" data-drink="${i}" title="${esc(d[4])}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--${d[3] === "high" ? "bad" : "warn"})"></i>${esc(d[0])} <b class="num" style="font-weight:700">${d[1]}</b></button>`).join("")}</div>
+      <p class="focus" style="margin-top:8px;font-size:12px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad)"></i> high histamine \u00a0 <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn)"></i> moderate</p></div>
     <div class="card" id="builderCard"><div class="row between"><h3>Make your own</h3><button class="btn sm ${builder.open ? "ghost" : "primary"}" type="button" id="bd-toggle">${builder.open ? "Close" : "Start"}</button></div>
       <p class="focus" style="margin-top:4px">Build a dish from its ingredients and save it as a recipe.</p>
       <div id="builderBody"></div></div>`;
@@ -2314,6 +2331,13 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     $("#pp-plus").onclick = () => setServings(Number(pq.value) + (Number(pq.value) < 1 ? 0.25 : 0.5));
     document.querySelectorAll("[data-pq]").forEach(b => b.onclick = () => setServings(Number(b.dataset.pq)));
   }
+  // One tap adds a drink; tapping the same one again makes it two.
+  document.querySelectorAll("[data-drink]").forEach(b => b.onclick = () => {
+    const d = DRINKS[+b.dataset.drink]; const day = foodDay(iso); const cur = day.find(i => i.meal === "Drinks" && i.name === d[0] && i.base);
+    if (cur) { cur.qty = (cur.qty || 1) + 1; cur.kcal = Math.round(cur.base.kcal * cur.qty); cur.alc = Math.round(cur.base.alc * cur.qty * 10) / 10; state.food[iso] = [...day]; }
+    else { const h = { level: d[3], why: d[4] }; state.food[iso] = [...day, { id: uid(), name: d[0], kcal: d[1], protein: 0, fat: 0, chol: 0, alc: d[2], qty: 1, base: { kcal: d[1], prot: 0, chol: 0, fat: 0, alc: d[2] }, meal: "Drinks", hist: h.level, why: h.why, t: Date.now() }]; }
+    persist("food"); toast(d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "")); renderFood();
+  });
   document.querySelectorAll("[data-mydel]").forEach(b => b.onclick = () => { const r = state.recipes.find(x => x.id === b.dataset.mydel); if (!r || !confirm(`Remove \u201c${r.name}\u201d from my foods? Entries already logged stay.`)) return; state.recipes = state.recipes.filter(x => x !== r); persist("recipes"); renderFood(); });
   document.querySelectorAll("[data-fdel]").forEach(b => b.onclick = () => { state.food[iso] = foodDay(iso).filter(i => i.id !== b.dataset.fdel); if (!state.food[iso].length) delete state.food[iso]; persist("food"); renderFood(); });
 
