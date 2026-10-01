@@ -2157,6 +2157,7 @@ function renderFood() {
     onl.disabled = true; onlRes.innerHTML = `<p class="focus">Searching USDA and Open Food Facts…</p>`;
     try {
       const d = await onlineSearch(term); lastOnline = d.results || [];
+      lastOnline = relevantResults(term, lastOnline);
       const best = lastOnline.length ? bestOnline(term, lastOnline) : null;
       if (best) useOnline(best, true);
       else { $("#ff-save").checked = true; setTimeout(() => kEl.focus(), 50); }
@@ -2459,20 +2460,20 @@ async function directSearch(q) {
   })().catch(e => notes.push(e.message.includes("USDA") ? e.message : "USDA could not be reached"));
   const off = (async () => {
     // The classic text search ranks by relevance and allows browser calls; the v2 API is the fallback when it is overloaded.
-    const fields = "product_name,brands,serving_size,serving_quantity,nutriments";
+    const fields = "product_name,product_name_en,brands,serving_size,serving_quantity,nutriments";
     let d;
     try {
-      const r = await fetch("https://world.openfoodfacts.org/cgi/search.pl?search_terms=" + encodeURIComponent(q) + "&search_simple=1&action=process&json=1&page_size=12&fields=" + fields);
+      const r = await fetch("https://world.openfoodfacts.org/cgi/search.pl?search_terms=" + encodeURIComponent(q) + "&search_simple=1&action=process&json=1&page_size=20&lc=en&fields=" + fields);
       if (!r.ok) throw new Error("status " + r.status);
       d = await r.json();
     } catch (e) {
-      const r = await fetch("https://world.openfoodfacts.org/api/v2/search?search_terms=" + encodeURIComponent(q) + "&page_size=12&fields=" + fields);
+      const r = await fetch("https://world.openfoodfacts.org/api/v2/search?search_terms=" + encodeURIComponent(q) + "&page_size=20&lc=en&fields=" + fields);
       if (!r.ok) throw new Error("Open Food Facts returned an error " + r.status);
       d = await r.json();
     }
     for (const p of d.products || []) {
       const n = p.nutriments || {}; let kcal = num(n["energy-kcal_100g"]); if (kcal == null && num(n.energy_100g) != null) kcal = Math.round(num(n.energy_100g) / 4.184 * 10) / 10;
-      const name = (p.product_name || "").trim(); if (kcal == null || !name) continue;
+      const name = (p.product_name_en || p.product_name || "").trim(); if (kcal == null || !name || !latinOnly(name)) continue;
       const cg = num(n.cholesterol_100g); const per100 = { kcal, prot: num(n.proteins_100g), chol: cg == null ? null : Math.round(cg * 1000 * 10) / 10, fat: num(n.fat_100g) };
       const grams = num(p.serving_quantity); const serving = grams ? { label: p.serving_size || (grams + " g"), grams } : null;
       let br = p.brands || ""; br = Array.isArray(br) ? (br[0] || "") : String(br).split(",")[0];
@@ -2482,6 +2483,13 @@ async function directSearch(q) {
   await Promise.all([usda, off]);
   const seen = new Set(); const uniq = results.filter(r => { const k = r.src + "|" + r.name.toLowerCase() + "|" + r.brand.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
   return { q, results: uniq.slice(0, 20), notes };
+}
+// Open Food Facts is worldwide: keep only names written in Latin letters, and only results that mention a word she typed.
+function latinOnly(s) { return !/[^\u0000-\u024F\u1E00-\u1EFF\u2000-\u206F\u20A0-\u20CF\u2100-\u214F]/.test(s); }
+function relevantResults(term, list) {
+  const words = (term || "").toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2);
+  if (!words.length) return list;
+  return list.filter(r => { const t = ((r.brand || "") + " " + (r.name || "")).toLowerCase(); return words.some(w => t.includes(w)); });
 }
 // Client-side exercise matcher for the hosted build, same rules as the Mac's exercise_match.py.
 let exIndex = null;
@@ -2654,7 +2662,7 @@ function drawBuilder(focusSearch) {
     const term = q.value.trim(); if (term.length < 2) { toast("Type the ingredient first"); q.focus(); return; }
     ob.disabled = true; res.innerHTML = `<p class="focus" style="margin-top:8px">Searching USDA and Open Food Facts\u2026</p>`;
     try {
-      const d = await onlineSearch(term); builderOnline = d.results || [];
+      const d = await onlineSearch(term); builderOnline = relevantResults(term, d.results || []);
       res.innerHTML = (builderOnline.length ? `<div class="olist">${builderOnline.map((r, i) => onlineResultHTML(r, i, true)).join("")}</div>` : `<p class="focus" style="margin-top:8px">Nothing found for \u201c${esc(term)}\u201d.</p>`)
         + (d.notes && d.notes.length ? `<p class="focus" style="margin-top:6px;font-size:12px">${esc(d.notes.join(". "))}.</p>` : "");
       res.querySelectorAll("[data-or]").forEach(b => b.onclick = () => { addIngredient(ingredientFromOnline(builderOnline[+b.dataset.or])); });
