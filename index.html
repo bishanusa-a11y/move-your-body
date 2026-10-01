@@ -1569,7 +1569,7 @@ function renderProgress() {
     <div class="tile"><div class="eyebrow">Goal date</div><div class="v" style="font-size:18px">${P ? (P.reached ? "Reached ✓" : P.date.toLocaleDateString(undefined,{month:"short",day:"numeric"})) : "—"}</div><div class="d">${P && !P.reached ? "estimate at " + P.basis : P && P.reached ? "maintain: weigh in weekly" : "needs a weigh-in"}</div></div>
     ${(() => { const wk = weekSessions(), done = wk.filter(d => state.sessions[d.iso]), mins = done.reduce((a, d) => a + (state.sessions[d.iso].minutes || 0), 0), st = wk.map(d => state.steps[d.iso]).filter(v => v != null), avg = st.length ? Math.round(st.reduce((a, b) => a + b, 0) / st.length) : null;
       return `<div class="tile"><div class="eyebrow">This week</div><div class="v num">${done.length}<small> of 5 sessions</small></div><div class="d num">${mins} min${avg != null ? " \u00b7 " + avg.toLocaleString() + " steps a day" : ""}</div><div class="bar"><i style="width:${Math.min(100, done.length / 5 * 100)}%"></i></div></div>`; })()}
-    ${(() => { const s = state.settings, W = drinkWeek(mondayOf(new Date())), H = drinkHistory(), met = H.filter(x => x.ok).length; return `<div class="tile"><div class="eyebrow">Drinks this week</div><div class="v num ${W.ok ? "down" : "up"}">${W.n}<small> of ${s.drinkMax ?? 8}</small></div><div class="d num">${W.days} of ${s.drinkDays ?? 3} days \u00b7 ${met} week${met === 1 ? "" : "s"} met, ${H.length - met} missed</div><div class="bar"><i style="width:${Math.min(100, W.n / Math.max(1, s.drinkMax ?? 8) * 100)}%;${W.ok ? "" : "background:var(--warn)"}"></i></div></div>`; })()}
+    ${(() => { const s = state.settings, W = drinkWeek(mondayOf(new Date())), H = drinkHistory(), met = H.filter(x => x.ok).length; return `<div class="tile"><div class="eyebrow">Drinks this week</div><div class="v num ${W.ok ? "down" : "up"}">${W.n}<small> of ${s.drinkMax ?? 8}</small></div><div class="d num">${W.days} of ${s.drinkDays ?? 3} days \u00b7 ${met} week${met === 1 ? "" : "s"} within, ${H.length - met} over</div><div class="bar"><i style="width:${Math.min(100, W.n / Math.max(1, s.drinkMax ?? 8) * 100)}%;${W.ok ? "" : "background:var(--warn)"}"></i></div></div>`; })()}
   </div>
   <div class="card"><div class="row between"><h3>Weight</h3><span class="chip">${es.filter(e=>e.weight!=null).length} weigh-ins</span></div>
     <div class="chart-wrap" id="chartWeight" style="margin-top:8px"></div>
@@ -1613,7 +1613,7 @@ const DRINKS = [
   ["Negroni", 190, 22, "high", "vermouth is wine-based"], ["Aperol spritz", 160, 11, "high", "prosecco, fermented"], ["Baileys, 50 ml", 160, 7, "mod", DM]
 ];
 function drinkTotals(items) { const d = (items || []).filter(i => i.meal === "Drinks"); return { kcal: d.reduce((a, i) => a + (i.kcal || 0), 0), std: Math.round(d.reduce((a, i) => a + (i.alc || 0), 0) / 10 * 10) / 10, n: d.length }; }
-// Her drinking goal: at most drinkMax drinks and drinkDays drinking days in a Monday-to-Sunday week.
+// Her drinking limit: at most drinkMax drinks and drinkDays drinking days in a Monday-to-Sunday week.
 const isoOf = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 function mondayOf(d) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t; }
 function drinkWeek(mon) {
@@ -1631,12 +1631,12 @@ function drinkHistory() {
 // The goal panel, shown on Food and on Progress.
 function drinkGoalHTML() {
   const s = state.settings, W = drinkWeek(mondayOf(new Date())), H = drinkHistory(), met = H.filter(x => x.ok).length;
-        return `<div class="row between"><h3>${state.tab === "progress" ? "Drinking goal" : "Drinks"}</h3><span class="chip ${W.ok ? "good" : "bad"}">${W.ok ? "within goal" : "over goal"}</span></div>
+        return `<div class="row between"><h3>${state.tab === "progress" ? "Drinking limit" : "Drinks"}</h3><span class="chip ${W.ok ? "good" : "bad"}">${W.ok ? "within limit" : "over limit"}</span></div>
       <div class="daytot" style="grid-template-columns:1fr 1fr;margin-top:10px">
         <div><span>Drinks this week</span><b class="num ${W.n > (s.drinkMax ?? 8) ? "up" : ""}">${W.n} of ${s.drinkMax ?? 8}</b></div>
         <div><span>Drinking days</span><b class="num ${W.days > (s.drinkDays ?? 3) ? "up" : ""}">${W.days} of ${s.drinkDays ?? 3}</b></div>
-        <div><span>Weeks met</span><b class="num down">${met}</b></div>
-        <div><span>Weeks missed</span><b class="num ${H.length - met ? "up" : ""}">${H.length - met}</b></div></div>
+        <div><span>Weeks within limit</span><b class="num down">${met}</b></div>
+        <div><span>Weeks over</span><b class="num ${H.length - met ? "up" : ""}">${H.length - met}</b></div></div>
       ${H.length ? `<div class="week" style="margin-top:10px;flex-wrap:wrap">${H.slice(-12).map(x => `<span class="${x.ok ? "done" : ""}" style="${x.ok ? "" : "background:var(--bad);border-color:var(--bad);color:#fff"}" title="Week of ${fmtShort(isoOf(x.mon))}: ${x.n} drinks on ${x.days} days">${x.ok ? "\u2713" : "\u2715"}</span>`).join("")}</div>` : ""}
       <div class="focus num" style="margin-top:8px;font-size:12.5px">${W.kcal.toLocaleString()} kcal from drinks this week</div>`;
 }
@@ -2414,7 +2414,7 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     if (cur) { cur.qty = (cur.qty || 1) + 1; cur.kcal = Math.round(cur.base.kcal * cur.qty); cur.alc = Math.round(cur.base.alc * cur.qty * 10) / 10; state.food[iso] = [...day]; }
     else { const h = { level: d[3], why: d[4] }; state.food[iso] = [...day, { id: uid(), name: d[0], kcal: d[1], protein: 0, fat: 0, chol: 0, alc: d[2], qty: 1, base: { kcal: d[1], prot: 0, chol: 0, fat: 0, alc: d[2] }, meal: "Drinks", hist: h.level, why: h.why, t: Date.now() }]; }
     persist("food"); const W = drinkWeek(mondayOf(parseISO(iso)));
-    toast(W.ok ? d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "") : "Over this week's goal: " + W.n + " drinks on " + W.days + " days"); renderFood();
+    toast(W.ok ? d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "") : "Over this week's limit: " + W.n + " drinks on " + W.days + " days"); renderFood();
   });
   document.querySelectorAll("[data-mydel]").forEach(b => b.onclick = () => { const r = state.recipes.find(x => x.id === b.dataset.mydel); if (!r || !confirm(`Remove \u201c${r.name}\u201d from my foods? Entries already logged stay.`)) return; state.recipes = state.recipes.filter(x => x !== r); persist("recipes"); renderFood(); });
   document.querySelectorAll("[data-fdel]").forEach(b => b.onclick = () => { state.food[iso] = foodDay(iso).filter(i => i.id !== b.dataset.fdel); if (!state.food[iso].length) delete state.food[iso]; persist("food"); renderFood(); });
