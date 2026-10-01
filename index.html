@@ -1612,6 +1612,8 @@ const DRINKS = [
   ["Margarita", 200, 18, "high", "lime triggers histamine release"], ["Mojito", 170, 13, "high", "lime triggers histamine release"], ["Espresso martini", 210, 17, "mod", DM],
   ["Negroni", 190, 22, "high", "vermouth is wine-based"], ["Aperol spritz", 160, 11, "high", "prosecco, fermented"], ["Baileys, 50 ml", 160, 7, "mod", DM]
 ];
+// Her own drinks live in the recipes doc as { custom: true, drink: true, alc, hist }.
+function allDrinks() { return DRINKS.concat((state.recipes || []).filter(r => r.drink).map(r => [r.name, r.kcal, r.alc || 0, r.hist || "mod", r.hist === "high" ? DH : DM, r.id])); }
 function drinkTotals(items) { const d = (items || []).filter(i => i.meal === "Drinks"); return { kcal: d.reduce((a, i) => a + (i.kcal || 0), 0), std: Math.round(d.reduce((a, i) => a + (i.alc || 0), 0) / 10 * 10) / 10, n: d.length }; }
 // Her drinking limit: at most drinkMax drinks and drinkDays drinking days in a Monday-to-Sunday week.
 const isoOf = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -2085,10 +2087,18 @@ function renderFood() {
       <div class="full" id="ff-shot" hidden></div>
       <div class="full ai-out" id="ff-ai-out"></div>
     </form>
-    ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${[r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul></details>` : ""}</div>
+    ${(state.recipes || []).some(r => r.custom) ? `<details class="cz" style="margin-top:12px"><summary>My foods <span class="chip num">${state.recipes.filter(r => r.custom).length}</span></summary><ul class="food">${state.recipes.filter(r => r.custom).map(r => `<li><div class="n">${esc(r.name)}</div><div class="k num">${Math.round(r.kcal)}<small> kcal</small><small class="d">${r.drink ? (r.alc / 10) + " std drinks" : [r.prot != null ? r.prot + " g protein" : "", r.fat != null ? r.fat + " g fat" : "", r.chol != null ? r.chol + " mg chol" : ""].filter(Boolean).join(" \u00b7 ")}</small></div><button class="del" type="button" data-mydel="${r.id}" aria-label="Delete ${esc(r.name)}">\u2715</button></li>`).join("")}</ul></details>` : ""}</div>
     <div class="card" id="drinksCard">${drinkGoalHTML()}
-      <div class="joints" style="margin-top:10px">${DRINKS.map((d, i) => `<button type="button" data-drink="${i}" title="${esc(d[4])}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--${d[3] === "high" ? "bad" : "warn"})"></i>${esc(d[0])} <b class="num" style="font-weight:700">${d[1]}</b></button>`).join("")}</div>
-      <p class="focus" style="margin-top:8px;font-size:12px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad)"></i> high histamine \u00a0 <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn)"></i> moderate</p></div>
+      <div class="joints" style="margin-top:10px">${allDrinks().map((d, i) => `<button type="button" data-drink="${i}" title="${esc(d[4])}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--${d[3] === "high" ? "bad" : "warn"})"></i>${esc(d[0])} <b class="num" style="font-weight:700">${d[1]}</b></button>`).join("")}</div>
+      <p class="focus" style="margin-top:8px;font-size:12px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad)"></i> high histamine \u00a0 <i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn)"></i> moderate</p>
+      <details class="cz" style="margin-top:6px"><summary>Other drink</summary>
+        <form class="form" id="drinkForm" style="margin-top:8px">
+          <label class="full">Name<input type="text" id="dk-name" maxlength="60" autocomplete="off" placeholder="e.g. Lychee martini"></label>
+          <label>Calories <span><small>kcal</small></span><input type="number" id="dk-kcal" inputmode="numeric" min="0" max="2000" step="1" placeholder="?"></label>
+          <label>Standard drinks<input type="number" id="dk-std" inputmode="decimal" min="0" max="10" step="0.5" value="1.5"></label>
+          <label>Histamine<select id="dk-hist"><option value="high">High (wine, beer, lime, vermouth)</option><option value="mod" selected>Moderate (spirit based)</option></select></label>
+          <div class="full"><button class="btn primary" type="submit">Add and remember</button></div>
+        </form></details></div>
     <div class="card" id="builderCard"><div class="row between"><h3>Make your own</h3><button class="btn sm ${builder.open ? "ghost" : "primary"}" type="button" id="bd-toggle">${builder.open ? "Close" : "Start"}</button></div>
       <p class="focus" style="margin-top:4px">Build a dish from its ingredients and save it as a recipe.</p>
       <div id="builderBody"></div></div>`;
@@ -2409,8 +2419,19 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     document.querySelectorAll("[data-pq]").forEach(b => b.onclick = () => setServings(Number(b.dataset.pq)));
   }
   // One tap adds a drink; tapping the same one again makes it two.
+  const df = $("#drinkForm"); if (df) df.onsubmit = ev => {
+    ev.preventDefault();
+    const name = $("#dk-name").value.trim(), kcal = Math.round(Number($("#dk-kcal").value)), std = Number($("#dk-std").value) || 0, hist = $("#dk-hist").value;
+    if (!name) { toast("Name the drink"); $("#dk-name").focus(); return; }
+    if (!(kcal >= 0)) { toast("How many calories?"); $("#dk-kcal").focus(); return; }
+    const rec = { id: uid(), name: name.slice(0, 60), kcal, prot: 0, chol: 0, fat: 0, alc: Math.round(std * 100) / 10, hist, custom: true, drink: true, parts: [] };
+    const at = state.recipes.findIndex(r => r.name.toLowerCase() === rec.name.toLowerCase());
+    state.recipes = at >= 0 ? state.recipes.map((r, i) => i === at ? { ...rec, id: r.id } : r) : [...state.recipes, rec];
+    persist("recipes"); renderFood();
+    const b = [...document.querySelectorAll("[data-drink]")].find(x => allDrinks()[+x.dataset.drink][0] === rec.name); if (b) b.click();
+  };
   document.querySelectorAll("[data-drink]").forEach(b => b.onclick = () => {
-    const d = DRINKS[+b.dataset.drink]; const day = foodDay(iso); const cur = day.find(i => i.meal === "Drinks" && i.name === d[0] && i.base);
+    const d = allDrinks()[+b.dataset.drink]; const day = foodDay(iso); const cur = day.find(i => i.meal === "Drinks" && i.name === d[0] && i.base);
     if (cur) { cur.qty = (cur.qty || 1) + 1; cur.kcal = Math.round(cur.base.kcal * cur.qty); cur.alc = Math.round(cur.base.alc * cur.qty * 10) / 10; state.food[iso] = [...day]; }
     else { const h = { level: d[3], why: d[4] }; state.food[iso] = [...day, { id: uid(), name: d[0], kcal: d[1], protein: 0, fat: 0, chol: 0, alc: d[2], qty: 1, base: { kcal: d[1], prot: 0, chol: 0, fat: 0, alc: d[2] }, meal: "Drinks", hist: h.level, why: h.why, t: Date.now() }]; }
     persist("food"); const W = drinkWeek(mondayOf(parseISO(iso)));
@@ -2444,7 +2465,7 @@ function scoreFood(n, p) {
   return sc;
 }
 // Saved recipes first, then the built-in table. Entries: [name, kcal, prot, cuisine, chol, isRecipe, fat].
-function foodsPool() { return (state.recipes || []).map(r => [r.name, r.kcal, r.prot, null, r.chol, true, r.fat == null ? null : r.fat, !!r.custom]).concat(ALL_FOODS); }
+function foodsPool() { return (state.recipes || []).filter(r => !r.drink).map(r => [r.name, r.kcal, r.prot, null, r.chol, true, r.fat == null ? null : r.fat, !!r.custom]).concat(ALL_FOODS); }
 function rankFoods(q, limit, pool) {
   const n = (q||"").trim().toLowerCase(); if (n.length < 2) return [];
   return (pool || foodsPool()).map(p => [p, scoreFood(n, p) + (p[5] ? 12 : 0)]).filter(x => x[1] > 0)
