@@ -975,10 +975,53 @@ function didHTML(p) {
     </div>`;
 }
 // One tick, every copy of it: the same move shows on Today and on Plan, so both boxes change together.
-function onTick(c) {
-  ensureChecks(); checks.on[c.dataset.chk] = c.checked; lsSet("sculpt.checks", checks);
-  document.querySelectorAll("[data-chk]").forEach(o => { if (o.dataset.chk === c.dataset.chk) { o.checked = c.checked; const li = o.closest("li"); if (li) li.classList.toggle("done", c.checked); } });
+function onTick(c) { setTick(c.dataset.chk, c.checked); }
+function setTick(key, on) {
+  ensureChecks(); checks.on[key] = on; lsSet("sculpt.checks", checks);
+  document.querySelectorAll("[data-chk]").forEach(o => { if (o.dataset.chk === key) { o.checked = on; const li = o.closest("li"); if (li) li.classList.toggle("done", on); } });
   refreshBurned();
+}
+
+/* ---------- guided workout: one move at a time, no timers ---------- */
+let guide = null;   // { unitId, steps: [{ key, name, reps, tip, block, round, rounds }], i }
+function startGuide(unitId) {
+  ensureChecks(); const key = DOW[new Date().getDay()], steps = [];
+  if (unitId === "plan") {
+    buildSession(key, state.duration || 30, weekIndex()).blocks.forEach((b, bi) => { for (let r = 1; r <= (b.rounds || 1); r++) b.items.forEach((it, i) => { const [nm, reps, tip] = applySwap(it); steps.push({ key: bi + "|" + b.name + "|" + i, name: nm, reps, tip, block: b.name, round: r, rounds: b.rounds || 1 }); }); });
+  } else {
+    const x = sessionById(unitId); if (!x) return;
+    (x.b || []).forEach((b, bi) => (b.x || []).forEach((e, i) => steps.push({ key: "my|" + x.id + "|" + bi + "|" + i, name: e.n, reps: fmtSets(e.s), tip: [e.w && e.w !== "BW" ? e.w : e.w === "BW" ? "bodyweight" : "", e.r].filter(Boolean).join(" \u00b7 "), block: b.t || "Workout", round: 1, rounds: 1 })));
+  }
+  if (!steps.length) return;
+  let i = steps.findIndex(s => !checks.on[s.key]); if (i < 0) i = steps.length;
+  guide = { unitId, steps, i };
+  let dlg = $("#guideDlg");
+  if (!dlg) { document.body.insertAdjacentHTML("beforeend", `<dialog id="guideDlg"><div class="sheet" id="guideBody"></div></dialog>`); dlg = $("#guideDlg"); }
+  drawGuide(); if (!dlg.open) dlg.showModal();
+}
+function drawGuide() {
+  const el = $("#guideBody"), dlg = $("#guideDlg"); if (!el || !guide) return;
+  const { steps, i } = guide, n = steps.length, done = steps.filter(s => checks.on[s.key]).length;
+  if (i >= n) {
+    el.innerHTML = `<div class="row between"><h3 style="margin:0">Finished</h3><button class="x" type="button" id="gd-x" aria-label="Close">\u00d7</button></div>
+      <div class="big num" style="margin-top:10px;font-family:var(--display);font-weight:800;font-size:28px">${done}<small style="font-family:var(--body);font-size:14px;font-weight:600;color:var(--ink2)"> of ${n} moves done</small></div>
+      <div class="camerarow" style="margin-top:14px"><button class="btn primary" type="button" id="gd-log">Mark session done</button><button class="btn ghost" type="button" id="gd-close">Close</button></div>`;
+    $("#gd-x").onclick = $("#gd-close").onclick = () => dlg.close();
+    $("#gd-log").onclick = () => { dlg.close(); const b = guide.unitId === "plan" ? $("#markDone") : document.querySelector(`#screen-today [data-sdone="${guide.unitId}"]`); if (b && !b.disabled) b.click(); };
+    return;
+  }
+  const s = steps[i], on = !!checks.on[s.key];
+  el.innerHTML = `<div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><div class="eyebrow">${esc(s.block)}${s.rounds > 1 ? ` \u00b7 round ${s.round} of ${s.rounds}` : ""} \u00b7 ${i + 1} of ${n}</div><button class="x" type="button" id="gd-x" aria-label="Close">\u00d7</button></div>
+    <div class="bar" style="margin-top:8px"><i style="width:${Math.round(i / n * 100)}%"></i></div>
+    <h2 style="margin-top:14px;font-size:24px"><span class="n" data-ex="${esc(s.name)}" data-exr="${esc(s.reps || "")}" data-ext="${esc(s.tip || "")}">${esc(s.name)}</span></h2>
+    ${s.reps ? `<div class="chip acc" style="margin-top:8px;font-size:15px;padding:6px 12px">${esc(s.reps)}</div>` : ""}
+    ${s.tip ? `<p class="focus" style="margin-top:8px">${esc(s.tip)}</p>` : ""}
+    <div class="camerarow" style="margin-top:18px"><button class="btn primary" type="button" id="gd-done" style="padding:12px 22px;font-size:16px">${on ? "\u2713 Done, next" : "Done \u2713"}</button><button class="btn" type="button" id="gd-skip">Skip</button>${i > 0 ? `<button class="btn ghost" type="button" id="gd-back">Back</button>` : ""}<button class="btn ghost sm" type="button" id="gd-finish">Finish</button></div>`;
+  $("#gd-x").onclick = () => dlg.close();
+  $("#gd-done").onclick = () => { setTick(s.key, true); guide.i++; drawGuide(); };
+  $("#gd-skip").onclick = () => { guide.i++; drawGuide(); };
+  const bk = $("#gd-back"); if (bk) bk.onclick = () => { guide.i--; drawGuide(); };
+  $("#gd-finish").onclick = () => { guide.i = n; drawGuide(); };
 }
 function wholeHTML(p, n) { return `<div class="block"><header><span class="t">\u2713 Whole session logged</span><span class="m">${n ? n + " moves \u00b7 " : ""}${p.minutes ? p.minutes + " min" : ""}${p.kcal ? " \u00b7 " + p.kcal + " kcal" : ""}</span></header></div>`; }
 function sessionKcalEstimate(x, blocksFromPlan) {
@@ -1074,7 +1117,7 @@ function renderToday() {
   }
   if (hasVids) html += `</details>`;
   html += `<div class="row between" style="margin-top:14px">
-      <button class="btn primary" id="markDone" ${done ? "disabled" : ""}>${done ? "Session logged" : "Mark session done"}</button>
+      ${done || day.rest ? "" : `<button class="btn" type="button" data-guide="plan">\u25b6 Start</button>`}<button class="btn primary" id="markDone" ${done ? "disabled" : ""}>${done ? "Session logged" : "Mark session done"}</button>
       ${done ? `<button class="btn ghost sm" id="undoDone">Undo</button>` : day.rest ? "" : `<button class="btn ghost sm" type="button" id="circNext">Change circuits</button>`}
     </div></div>`;
   // Her own sessions added to today: each one is its own card, ticked and logged separately.
@@ -1086,7 +1129,7 @@ function renderToday() {
       <p class="focus">${sessionSummary(x)}</p>
       ${pd ? (pd.did ? didHTML(pd) : wholeHTML(pd, sessExercises(x).length)) : sessionHTML(x, true)}
       <div class="row between" style="margin-top:14px">
-        <button class="btn primary" type="button" data-sdone="${x.id}" ${pd ? "disabled" : ""}>${pd ? "Session logged" : "Mark session done"}</button>
+        ${pd ? "" : `<button class="btn" type="button" data-guide="${x.id}">\u25b6 Start</button>`}<button class="btn primary" type="button" data-sdone="${x.id}" ${pd ? "disabled" : ""}>${pd ? "Session logged" : "Mark session done"}</button>
         ${pd ? `<button class="btn ghost sm" type="button" data-sundo="${x.id}">Undo</button>` : `<button class="btn ghost sm" type="button" data-unpick="${x.id}">Remove from today</button>`}
       </div></div>`;
   }
@@ -1124,6 +1167,7 @@ function renderToday() {
   document.querySelectorAll("#screen-today [data-unpick]").forEach(b => b.onclick = () => { state.picks[iso] = picksFor(iso).filter(id => id !== b.dataset.unpick); if (!state.picks[iso].length) delete state.picks[iso]; persist("picks"); renderAll(); });
   document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => pickSession(b.dataset.pick));
   const vd = $("#vidDrawer"); if (vd) vd.ontoggle = () => { state.vidOpen = vd.open; };
+  document.querySelectorAll("#screen-today [data-guide]").forEach(b => b.onclick = () => startGuide(b.dataset.guide));
   const cn = $("#circNext"); if (cn) cn.onclick = () => { lsSet("sculpt.shift", { date: todayISO(), n: circShift() + 1 }); renderAll(); };
   const svn = $("#svNext"); if (svn) svn.onclick = () => { state.savedOffset = (state.savedOffset || 0) + 1; renderToday(); };
   const sn = $("#sugNext"); if (sn) sn.onclick = () => { state.sugOffset = (state.sugOffset || 0) + 1; renderToday(); };
