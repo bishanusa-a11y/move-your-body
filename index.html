@@ -988,7 +988,7 @@ function sessionKcalEstimate(x, blocksFromPlan) {
 function burnedHTML(compact) {
   const B = burnedToday();
   if (compact) return `<span class="chip ${B.total ? "good" : ""} num" data-burned="chip">${B.total.toLocaleString()} kcal burned today</span>`;
-  return `<div data-burned="card"><div class="row between"><h3>Burned today</h3><span class="chip ${B.total ? "good" : ""} num">${B.total.toLocaleString()} kcal</span></div>
+  return `<div data-burned="card"><div class="row between"><h3>Burned today <small style="font-family:var(--body);font-weight:500;color:var(--muted)">estimate</small></h3><span class="chip ${B.total ? "good" : ""} num">${B.total.toLocaleString()} kcal</span></div>
     <div class="daytot" style="grid-template-columns:1fr 1fr;margin-top:10px">
       <div><span>Workouts</span><b class="num">${B.workout.toLocaleString()} kcal</b><span style="text-transform:none;letter-spacing:0;font-weight:500">${B.lines.length ? B.lines.length + " session" + (B.lines.length === 1 ? "" : "s") + " counted" : "tick moves as you finish them"}</span></div>
       <div><span>Walking</span><b class="num">${B.walking.toLocaleString()} kcal</b><span style="text-transform:none;letter-spacing:0;font-weight:500">${B.steps ? B.steps.toLocaleString() + " steps" : "log your steps below"}</span></div></div>
@@ -1013,7 +1013,7 @@ function renderStrip() {
     cell("Now", S.cur != null ? S.cur.toFixed(1) : "—", " kg", bmi ? "BMI " + bmi.toFixed(1) : "log a weigh-in") +
     cell("Goal", s.targetLow + "–" + s.targetHigh, " kg", S.toGo != null ? (S.toGo > 0 ? S.toGo.toFixed(1) + " kg to go" : "in range ✓") : "158 cm · BMI 20") +
     cell("Lost", S.lost != null ? fmtDelta(-S.lost).replace("−","") : "—", " kg", S.lost != null && S.lost > 0 ? "since " + fmtShort(first("weight").date) : "since start", S.lost > 0 ? "down" : "") +
-    cell("Inches", (["arm","thigh","belly"].filter(f => S.m[f]).length ? fmtDelta(["arm","thigh","belly"].reduce((a,f)=> a + (S.m[f] ? S.m[f].delta : 0), 0), "") : "—"), " in", "arm + thigh + belly", (["arm","thigh","belly"].reduce((a,f)=> a + (S.m[f] ? S.m[f].delta : 0), 0) < 0 ? "down" : ""));
+    cell("Inches", (["arm","thigh","belly"].filter(f => S.m[f]).length ? fmtDelta(["arm","thigh","belly"].reduce((a,f)=> a + (S.m[f] ? S.m[f].delta : 0), 0), "") : "—"), " in", (["arm","thigh","belly"].some(f => S.m[f]) ? ["arm","thigh","belly"].filter(f => S.m[f]).map(f => f + " " + fmtDelta(S.m[f].delta, "")).join(" \u00b7 ") : "arm + thigh + belly"), (["arm","thigh","belly"].reduce((a,f)=> a + (S.m[f] ? S.m[f].delta : 0), 0) < 0 ? "down" : ""));
 }
 
 /* ---------- render: today ---------- */
@@ -1521,8 +1521,10 @@ function renderProgress() {
     ${mt("Upper arm","arm","measure relaxed, widest point")}
     ${mt("Thigh","thigh","measure upper thigh, standing")}
     ${mt("Lower belly","belly","2 in below the navel")}
-    <div class="tile"><div class="eyebrow">BMI</div><div class="v num">${bmiNow ? bmiNow.toFixed(1) : "—"}<small> → ${bmiGoal.toFixed(1)}</small></div><div class="d">both inside the healthy 18.5–24.9 range</div></div>
-    <div class="tile"><div class="eyebrow">Goal date</div><div class="v" style="font-size:18px">${P ? (P.reached ? "Reached ✓" : P.date.toLocaleDateString(undefined,{month:"short",day:"numeric"})) : "—"}</div><div class="d">${P && !P.reached ? "at " + P.basis : P && P.reached ? "maintain: weigh in weekly" : "needs a weigh-in"}</div></div>
+    <div class="tile"><div class="eyebrow">BMI</div><div class="v num">${bmiNow ? bmiNow.toFixed(1) : "—"}<small> → ${bmiGoal.toFixed(1)}</small></div><div class="d">${bmiNow == null ? "log a weigh-in" : (bmiNow >= 18.5 && bmiNow < 25 ? "in" : "outside") + " the healthy 18.5–24.9 range"}</div></div>
+    <div class="tile"><div class="eyebrow">Goal date</div><div class="v" style="font-size:18px">${P ? (P.reached ? "Reached ✓" : P.date.toLocaleDateString(undefined,{month:"short",day:"numeric"})) : "—"}</div><div class="d">${P && !P.reached ? "estimate at " + P.basis : P && P.reached ? "maintain: weigh in weekly" : "needs a weigh-in"}</div></div>
+    ${(() => { const wk = weekSessions(), done = wk.filter(d => state.sessions[d.iso]), mins = done.reduce((a, d) => a + (state.sessions[d.iso].minutes || 0), 0), st = wk.map(d => state.steps[d.iso]).filter(v => v != null), avg = st.length ? Math.round(st.reduce((a, b) => a + b, 0) / st.length) : null;
+      return `<div class="tile"><div class="eyebrow">This week</div><div class="v num">${done.length}<small> of 5 sessions</small></div><div class="d num">${mins} min${avg != null ? " \u00b7 " + avg.toLocaleString() + " steps a day" : ""}</div><div class="bar"><i style="width:${Math.min(100, done.length / 5 * 100)}%"></i></div></div>`; })()}
     ${(() => { const s = state.settings, W = drinkWeek(mondayOf(new Date())), H = drinkHistory(), met = H.filter(x => x.ok).length; return `<div class="tile"><div class="eyebrow">Drinks this week</div><div class="v num ${W.ok ? "down" : "up"}">${W.n}<small> of ${s.drinkMax ?? 8}</small></div><div class="d num">${W.days} of ${s.drinkDays ?? 3} days \u00b7 ${met} week${met === 1 ? "" : "s"} met, ${H.length - met} missed</div><div class="bar"><i style="width:${Math.min(100, W.n / Math.max(1, s.drinkMax ?? 8) * 100)}%;${W.ok ? "" : "background:var(--warn)"}"></i></div></div>`; })()}
   </div>
   <div class="card"><div class="row between"><h3>Weight</h3><span class="chip">${es.filter(e=>e.weight!=null).length} weigh-ins</span></div>
@@ -1894,7 +1896,7 @@ const HIST = [
   ["high","histamine-rich fish or seafood", ["tuna","mackerel","sardine","anchovy","anchovies","ikan bilis","herring","smoked salmon","lox","canned fish","dried fish","maldive fish","umbalakada","salted fish","tuyo","bonito","katsuobushi","dashi","fish stock","shrimp","prawn","crab","lobster","mussel","clam","oyster","scallop","squid","calamari","ambul thiyal","tom yum","dried shrimp","fish paste","fish ball"]],
   ["high","alcohol", ["wine","champagne","prosecco","beer","cider","sake","soju","makgeolli","sangria","vodka","whisky","whiskey","rum","gin","tequila","cocktail","liqueur","arrack"]],
   ["high","high-histamine vegetable or fruit", ["tomato","marinara","salsa","passata","gazpacho","spinach","palak","eggplant","aubergine","brinjal","baingan","moussaka","baba ganoush","wambatu","avocado","guacamole"]],
-  ["high","histamine liberator (triggers release)", ["strawberr","pineapple","papaya","kiwi","banana","plum","chocolate","cocoa","cacao","walnut","cashew","peanut","citrus","orange","lemon","lime","grapefruit","tamarind","goraka","shellfish"]],
+  ["mod","often reported trigger (weaker evidence)", ["strawberr","pineapple","papaya","kiwi","banana","plum","chocolate","cocoa","cacao","walnut","cashew","peanut","citrus","orange","lemon","lime","grapefruit","tamarind","goraka","shellfish"]],
   ["mod","varies with age and fermentation", ["cheese","yogurt","yoghurt","curd","dahi","labneh","sour cream","buttermilk","sourdough","idli","dosa","injera","hoppers","appam","olive","mushroom","soy","tofu","edamame","chickpea","lentil","egg white","pork","dried fruit","raisin","date","apricot","canned","leftover","reheated","bone broth","stock cube","bouillon","msg","monosodium","energy drink","black tea","green tea","chai","matcha","mate","coffee","chili","chilli","cinnamon","curry powder","mirin","kombu","seaweed","nori","hummus","tahini","peanut butter","almond","pistachio","nuts"]]
 ];
 // Bad-cholesterol (LDL) rules, read from the food's name: what kind of fat it carries matters more than how much.
@@ -1923,7 +1925,7 @@ function histCheck(name) {
   return best;
 }
 const CUISINES = [
-  ["Everywhere: the big rules", "Histamine builds up as food ages, ferments, cures or sits. <b>Highest:</b> aged cheese, cured & processed meats, fermented anything (soy sauce, fish sauce, kimchi, sauerkraut, vinegar, yogurt), tuna, mackerel, sardines, anchovies, shellfish, smoked fish, alcohol, tomato, spinach, eggplant, avocado, leftovers and slow-simmered broths. <b>Liberators</b> (make your body release its own): citrus, strawberries, pineapple, papaya, banana, kiwi, chocolate, walnuts, cashews, peanuts, egg white, additives. <b>DAO blockers</b> (slow the enzyme that clears histamine): alcohol, black & green tea, energy drinks. <b>Safest:</b> freshly cooked chicken, turkey, fresh white fish, eggs (yolk), rice, quinoa, oats, potato, sweet potato, most fresh vegetables, apple, pear, mango, melon, blueberries, fresh herbs, olive & coconut oil, fresh dairy in small amounts. Cook, eat, and freeze extras at once rather than fridge-storing.", "everywhere"],
+  ["Everywhere: the big rules", "Histamine builds up as food ages, ferments, cures or sits. <b>Highest:</b> aged cheese, cured & processed meats, fermented anything (soy sauce, fish sauce, kimchi, sauerkraut, vinegar, yogurt), tuna, mackerel, sardines, anchovies, shellfish, smoked fish, alcohol, tomato, spinach, eggplant, avocado, leftovers and slow-simmered broths. <b>Often reported triggers</b> (weaker evidence): citrus, strawberries, pineapple, papaya, banana, kiwi, chocolate, walnuts, cashews, peanuts, egg white, additives. <b>DAO blockers</b> (slow the enzyme that clears histamine): alcohol, black & green tea, energy drinks. <b>Usually well tolerated:</b> freshly cooked chicken, turkey, fresh white fish, eggs (yolk), rice, quinoa, oats, potato, sweet potato, most fresh vegetables, apple, pear, mango, melon, blueberries, fresh herbs, olive & coconut oil, fresh dairy in small amounts. Cook, eat, and freeze extras at once rather than fridge-storing.", "everywhere"],
   ["Italian", "<b>Watch:</b> parmesan, pecorino, gorgonzola, salami, prosciutto, tomato sauce, balsamic, red wine, aged pizza cheese, anchovy, capers. <b>Safer:</b> pasta with olive oil, garlic and fresh herbs; risotto with zucchini or saffron; fresh mozzarella or ricotta; chicken piccata without capers; grilled chicken with rosemary.", "italian"],
   ["French", "<b>Watch:</b> brie, camembert, roquefort, charcuterie, wine sauces, champagne, mustard, escargot in wine butter. <b>Safer:</b> roast chicken with herbs, fresh chèvre, omelette, potatoes dauphinoise made fresh, crêpes, steamed vegetables with butter.", "french"],
   ["Spanish", "<b>Watch:</b> chorizo, jamón, manchego, gazpacho (tomato), seafood paella, sangria, sherry vinegar. <b>Safer:</b> tortilla española (egg and potato), chicken and saffron rice, grilled chicken or fresh fish a la plancha, patatas without bravas sauce.", "spanish"],
@@ -1972,6 +1974,7 @@ function renderFood() {
     ${iso !== todayISO() ? `<div class="row between" style="margin-top:10px;background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:8px 12px"><span style="font-size:13px;font-weight:600">You are looking at ${fmtShort(iso)}, not today.</span><button class="btn sm" type="button" id="fd-today">Back to today</button></div>` : ""}
     <div class="kring" style="margin-top:12px"><svg viewBox="0 0 92 92" role="img" aria-label="Calories eaten"><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="9"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="${eaten > K.target ? "var(--warn)" : "var(--accent)"}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}" transform="rotate(-90 46 46)"/><text x="46" y="51" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--ink);font-family:var(--display)">${Math.round(pct*100)}%</text></svg>
       <div><div class="big num ${left < 0 ? "up" : ""}">${left >= 0 ? left.toLocaleString() : "+" + Math.abs(left).toLocaleString()}<small> kcal ${left >= 0 ? "left" : "over"}</small></div>
+        <div class="focus" style="font-size:12px">${state.settings.kcalTarget > 0 ? "Your own target" : `Auto target: ${K.bmr.toLocaleString()} resting \u00d7 1.5 training${K.inRange ? "" : " \u2212 350"}${latest("weight") ? "" : ", from your start weight"}`} \u00b7 change in Log</div>
         </div></div></div>`;
 
   // The day's summary: what was eaten, grouped by meal, with each meal's share of the day.
@@ -1983,7 +1986,7 @@ function renderFood() {
   if (!items.length) {
     // Standing on an empty day while another day has food is confusing — say where it is.
     const recent = Object.keys(state.food).filter(k => k !== iso && (state.food[k] || []).length).sort().reverse()[0];
-    html += `<div class="empty">Nothing logged ${iso === todayISO() ? "today" : "on " + fmtShort(iso)} yet. Add a food below, or take a photo and it fills itself in.
+    html += `<div class="empty">Nothing logged ${iso === todayISO() ? "today" : "on " + fmtShort(iso)} yet.${canRead() ? " Add a food below, or take a photo and it fills itself in." : ""}
       ${recent ? `<div style="margin-top:12px"><button class="btn sm" type="button" data-goday="${recent}">See ${fmtShort(recent)} \u00b7 ${(state.food[recent]||[]).reduce((a,i)=>a+(i.kcal||0),0).toLocaleString()} kcal</button></div>` : ""}</div>`;
   }
   else {
@@ -2030,7 +2033,7 @@ function renderFood() {
       <div class="full camerarow">
         <button class="btn primary" type="submit">Add</button>
         ${state.sample ? `<button class="btn" type="button" id="ff-ai">Estimate with Claude</button>` : ""}
-        <button class="btn" type="button" id="ff-cam">\u{1F4F7} Photo</button>
+        <button class="btn" type="button" id="ff-cam">\u{1F4F7} ${canRead() ? "Photo" : "Attach photo"}</button>
         <button class="btn" type="button" id="ff-gal">\u{1F5BC} Gallery</button>
         <input type="file" id="ff-file" accept="image/*" capture="environment" hidden>
         <input type="file" id="ff-gfile" accept="image/*" hidden>
