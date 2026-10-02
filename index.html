@@ -1584,7 +1584,7 @@ function renderProgress() {
     <div class="legend"><span><i></i>steps a day</span><span><i class="proj"></i>goal ${(s.stepGoal||8000).toLocaleString()}</span></div></div>
   <div class="card">${drinkGoalHTML()}</div>
   <div class="card"><h3>All entries</h3><div class="tbl" style="margin-top:8px">${es.length ? `<table><thead><tr><th>Date</th><th>kg</th><th>Arm</th><th>Thigh</th><th>Belly</th><th>Waist</th><th>Hips</th><th></th></tr></thead><tbody>` +
-    [...es].reverse().map(e => `<tr><td>${fmtShort(e.date)}${e.note ? `<div class="tip" style="font-size:11px;color:var(--muted);white-space:normal">${esc(e.note)}</div>` : ""}</td><td class="num">${e.weight != null ? e.weight.toFixed(1) : "—"}</td><td class="num">${e.arm != null ? conv(e.arm).toFixed(1) : "—"}</td><td class="num">${e.thigh != null ? conv(e.thigh).toFixed(1) : "—"}</td><td class="num">${e.belly != null ? conv(e.belly).toFixed(1) : "—"}</td><td class="num">${e.waist != null ? conv(e.waist).toFixed(1) : "—"}</td><td class="num">${e.hips != null ? conv(e.hips).toFixed(1) : "—"}</td><td><button class="del" data-del="${e.id}" aria-label="Delete entry">✕</button></td></tr>`).join("") + `</tbody></table>` : `<div class="empty">No entries yet. Add one on the Log screen.</div>`}</div></div>`;
+    [...es].reverse().map(e => `<tr><td>${fmtShort(e.date)}${e.note ? `<div class="tip" style="font-size:11px;color:var(--muted);white-space:normal">${esc(e.note)}</div>` : ""}</td><td class="num">${e.weight != null ? e.weight.toFixed(1) : "—"}</td><td class="num">${e.arm != null ? conv(e.arm).toFixed(1) : "—"}</td><td class="num">${e.thigh != null ? conv(e.thigh).toFixed(1) : "—"}</td><td class="num">${e.belly != null ? conv(e.belly).toFixed(1) : "—"}</td><td class="num">${e.waist != null ? conv(e.waist).toFixed(1) : "—"}</td><td class="num">${e.hips != null ? conv(e.hips).toFixed(1) : "—"}</td><td style="white-space:nowrap"><button class="del" data-edit="${e.id}" aria-label="Edit entry">\u270e</button><button class="del" data-del="${e.id}" aria-label="Delete entry">✕</button></td></tr>`).join("") + `</tbody></table>` : `<div class="empty">No entries yet. Add one on the Log screen.</div>`}</div></div>`;
   $("#screen-progress").innerHTML = html;
 
   const wpts = es.filter(e => e.weight != null).map(e => ({ x: parseISO(e.date), y: e.weight }));
@@ -1596,6 +1596,7 @@ function renderProgress() {
   }
   barChart($("#chartSteps"), (() => { const out = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const iso = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); out.push({ x: d, y: state.steps[iso] ?? null }); } return out; })(), { goal: s.stepGoal || 8000, height: 170, emptyText: "Log steps on the Today screen to see them here." });
   document.querySelectorAll("[data-unit]").forEach(b => b.onclick = () => { state.settings.unit = b.dataset.unit; persist("settings"); renderAll(); });
+  document.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { editEntry = b.dataset.edit; renderLog(); showTab("log"); });
   document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const e = state.entries.find(x => x.id === b.dataset.del); if (!e) return; if (!confirm("Delete the entry from " + fmtShort(e.date) + "?")) return; state.entries = state.entries.filter(x => x.id !== e.id); persist("entries"); toast("Entry deleted"); renderAll(); });
 }
 
@@ -2785,20 +2786,23 @@ function defaultMeal() { const h = new Date().getHours(); return h < 10.5 ? "Bre
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 /* ---------- render: log ---------- */
+let editEntry = null;   // id of the weigh-in being edited on the Log screen
 function renderLog() {
   const s = state.settings; const u = s.unit === "cm" ? "cm" : "in"; const last = sortedEntries().slice(-1)[0];
+  const ed = editEntry ? state.entries.find(x => x.id === editEntry) : null; if (!ed) editEntry = null;
+  const cur = f => ed && ed[f] != null ? (s.unit === "cm" ? inToCm(ed[f]).toFixed(1) : ed[f].toFixed(1)) : "";
   const ph = f => last && last[f] != null ? (s.unit === "cm" ? inToCm(last[f]).toFixed(1) : last[f].toFixed(1)) : "";
-  $("#screen-log").innerHTML = `<div class="card lift"><h2>New entry</h2>
+  $("#screen-log").innerHTML = `<div class="card lift"><div class="row between"><h2>${ed ? "Edit " + fmtShort(ed.date) : "New entry"}</h2>${ed ? `<button class="btn ghost sm" type="button" id="f-cancel">Cancel</button>` : ""}</div>
     <form class="form" id="entryForm" style="margin-top:12px">
-      <label>Date<input type="date" id="f-date" value="${todayISO()}" max="${todayISO()}" required></label>
-      <label>Weight <span><small>kg</small></span><input type="number" id="f-weight" step="0.1" min="30" max="150" inputmode="decimal" placeholder="${last && last.weight != null ? last.weight.toFixed(1) : "55.0"}"></label>
-      <label>Upper arm <span><small>${u}</small></span><input type="number" id="f-arm" step="0.1" min="1" inputmode="decimal" placeholder="${ph("arm")}"></label>
-      <label>Thigh <span><small>${u}</small></span><input type="number" id="f-thigh" step="0.1" min="1" inputmode="decimal" placeholder="${ph("thigh")}"></label>
-      <label>Lower belly <span><small>${u}, 2 in below navel</small></span><input type="number" id="f-belly" step="0.1" min="1" inputmode="decimal" placeholder="${ph("belly")}"></label>
-      <label>Waist <span><small>${u}, optional</small></span><input type="number" id="f-waist" step="0.1" min="1" inputmode="decimal" placeholder="${ph("waist")}"></label>
-      <label>Hips <span><small>${u}, optional</small></span><input type="number" id="f-hips" step="0.1" min="1" inputmode="decimal" placeholder="${ph("hips")}"></label>
-      <label class="full">Note <span><small>optional</small></span><input type="text" id="f-note" maxlength="80" placeholder="e.g. after period week, bloated"></label>
-      <div class="full row between"><button class="btn primary" type="submit">Save entry</button><span class="focus">Units: <button type="button" class="btn ghost sm" id="toggleUnit">${u === "cm" ? "switch to inches" : "switch to cm"}</button></span></div>
+      <label>Date<input type="date" id="f-date" value="${ed ? ed.date : todayISO()}" max="${todayISO()}" required></label>
+      <label>Weight <span><small>kg</small></span><input type="number" id="f-weight" step="0.1" min="30" max="150" inputmode="decimal" value="${ed && ed.weight != null ? ed.weight.toFixed(1) : ""}" placeholder="${last && last.weight != null ? last.weight.toFixed(1) : "55.0"}"></label>
+      <label>Upper arm <span><small>${u}</small></span><input type="number" id="f-arm" step="0.1" min="1" inputmode="decimal" value="${cur("arm")}" placeholder="${ph("arm")}"></label>
+      <label>Thigh <span><small>${u}</small></span><input type="number" id="f-thigh" step="0.1" min="1" inputmode="decimal" value="${cur("thigh")}" placeholder="${ph("thigh")}"></label>
+      <label>Lower belly <span><small>${u}, 2 in below navel</small></span><input type="number" id="f-belly" step="0.1" min="1" inputmode="decimal" value="${cur("belly")}" placeholder="${ph("belly")}"></label>
+      <label>Waist <span><small>${u}, optional</small></span><input type="number" id="f-waist" step="0.1" min="1" inputmode="decimal" value="${cur("waist")}" placeholder="${ph("waist")}"></label>
+      <label>Hips <span><small>${u}, optional</small></span><input type="number" id="f-hips" step="0.1" min="1" inputmode="decimal" value="${cur("hips")}" placeholder="${ph("hips")}"></label>
+      <label class="full">Note <span><small>optional</small></span><input type="text" id="f-note" maxlength="80" value="${ed ? esc(ed.note || "") : ""}" placeholder="e.g. after period week, bloated"></label>
+      <div class="full row between"><button class="btn primary" type="submit">${ed ? "Save changes" : "Save entry"}</button><span class="focus">Units: <button type="button" class="btn ghost sm" id="toggleUnit">${u === "cm" ? "switch to inches" : "switch to cm"}</button></span></div>
     </form></div>
     <div class="card"><h3>Targets</h3>
       <form class="form" id="settingsForm" style="margin-top:10px">
@@ -2859,11 +2863,19 @@ function renderLog() {
     if (!e.date) return;
     if ([e.weight, e.arm, e.thigh, e.belly, e.waist, e.hips].every(v => v == null)) { toast("Enter at least one number"); return; }
     if (e.weight != null && (e.weight < 30 || e.weight > 150)) { toast("Weight looks off — check the number"); return; }
+    if (ed) {
+      const clash = state.entries.find(x => x.id !== ed.id && x.date === e.date);
+      if (clash && !confirm("There is already an entry on " + fmtShort(e.date) + ". Replace it?")) return;
+      if (clash) state.entries = state.entries.filter(x => x !== clash);
+      Object.assign(ed, e, { id: ed.id }); editEntry = null; toast("Updated " + fmtShort(e.date));
+      persist("entries"); renderAll(); state.tab = "progress"; showTab("progress"); return;
+    }
     const existing = state.entries.find(x => x.date === e.date);
     if (existing) { for (const k of ["weight","arm","thigh","belly","waist","hips","note"]) if (e[k] != null) existing[k] = e[k]; toast("Updated " + fmtShort(e.date)); }
     else { state.entries.push(e); toast("Saved " + fmtShort(e.date)); }
     persist("entries"); renderAll(); state.tab = "progress"; showTab("progress");
   };
+  const fc = $("#f-cancel"); if (fc) fc.onclick = () => { editEntry = null; renderLog(); };
   $("#toggleUnit").onclick = () => { state.settings.unit = s.unit === "cm" ? "in" : "cm"; persist("settings"); renderAll(); };
   const dxE = $("#dx-export");
   if (dxE) dxE.onclick = () => {
