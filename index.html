@@ -574,7 +574,7 @@ const PLAN = {
       ["Move With Nicole — 30 min gentle Pilates stretch", "Move With Nicole", yt("Move With Nicole 30 min gentle pilates stretch"), 30] ]
   },
   sun: {
-    title: "Rest Day", focus: "Full rest. Take your weekly measurements and weigh-in tomorrow morning before breakfast.", kit: "", rest: true,
+    title: "Rest Day", focus: "Full rest.", kit: "", rest: true,
     pool: [ { name: "Sunday", items: [
         ["Rest, hydrate, plan meals for the week", "", ""],
         ["Prep: set out Monday's dumbbell and mat", "", ""] ] } ],
@@ -1579,7 +1579,7 @@ function renderProgress() {
       <div><div class="eyebrow">Upper arm</div><div class="chart-wrap" id="chartArm"></div></div>
       <div><div class="eyebrow">Thigh</div><div class="chart-wrap" id="chartThigh"></div></div>
       <div><div class="eyebrow">Lower belly</div><div class="chart-wrap" id="chartBelly"></div></div>
-    </div><p class="focus" style="margin-top:8px">Dashed line is your −${goalLen.toFixed(1)} ${unitLbl} goal for each. Measure in the same spot, same time of day, tape snug but not tight.</p></div>
+    </div><p class="focus" style="margin-top:8px;font-size:13px">${(() => { const M = measureStatus(); return M.last ? "Monthly \u00b7 last " + fmtShort(M.last) + " \u00b7 " + (M.due ? "due now" : "next " + fmtShort(M.next)) : "Monthly \u00b7 not measured yet"; })()}</p></div>
   <div class="card"><div class="row between"><h3>Steps</h3><span class="chip">last 14 days</span></div><div class="chart-wrap" id="chartSteps" style="margin-top:8px"></div>
     <div class="legend"><span><i></i>steps a day</span><span><i class="proj"></i>goal ${(s.stepGoal||8000).toLocaleString()}</span></div></div>
   <div class="card">${drinkGoalHTML()}</div>
@@ -2786,21 +2786,31 @@ function defaultMeal() { const h = new Date().getHours(); return h < 10.5 ? "Bre
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 /* ---------- render: log ---------- */
+// Arm, thigh and belly are measured once a month: when was the last one, and when is the next due.
+function measureStatus() {
+  const es = sortedEntries().filter(e => e.arm != null || e.thigh != null || e.belly != null); const last = es.length ? es[es.length - 1].date : null;
+  if (!last) return { last: null, next: todayISO(), due: true };
+  const d = parseISO(last); d.setMonth(d.getMonth() + 1); const next = isoOf(d);
+  return { last, next, due: todayISO() >= next };
+}
 let editEntry = null;   // id of the weigh-in being edited on the Log screen
 function renderLog() {
   const s = state.settings; const u = s.unit === "cm" ? "cm" : "in"; const last = sortedEntries().slice(-1)[0];
   const ed = editEntry ? state.entries.find(x => x.id === editEntry) : null; if (!ed) editEntry = null;
+  const MS = measureStatus();
   const cur = f => ed && ed[f] != null ? (s.unit === "cm" ? inToCm(ed[f]).toFixed(1) : ed[f].toFixed(1)) : "";
   const ph = f => last && last[f] != null ? (s.unit === "cm" ? inToCm(last[f]).toFixed(1) : last[f].toFixed(1)) : "";
   $("#screen-log").innerHTML = `<div class="card lift"><div class="row between"><h2>${ed ? "Edit " + fmtShort(ed.date) : "New entry"}</h2>${ed ? `<button class="btn ghost sm" type="button" id="f-cancel">Cancel</button>` : ""}</div>
     <form class="form" id="entryForm" style="margin-top:12px">
       <label>Date<input type="date" id="f-date" value="${ed ? ed.date : todayISO()}" max="${todayISO()}" required></label>
       <label>Weight <span><small>kg</small></span><input type="number" id="f-weight" step="0.1" min="30" max="150" inputmode="decimal" value="${ed && ed.weight != null ? ed.weight.toFixed(1) : ""}" placeholder="${last && last.weight != null ? last.weight.toFixed(1) : "55.0"}"></label>
+      ${ed || MS.due || state.measureOpen ? (MS.due && !ed ? `<div class="full"><span class="chip acc">Monthly measurements due</span></div>` : "") + `
       <label>Upper arm <span><small>${u}</small></span><input type="number" id="f-arm" step="0.1" min="1" inputmode="decimal" value="${cur("arm")}" placeholder="${ph("arm")}"></label>
       <label>Thigh <span><small>${u}</small></span><input type="number" id="f-thigh" step="0.1" min="1" inputmode="decimal" value="${cur("thigh")}" placeholder="${ph("thigh")}"></label>
       <label>Lower belly <span><small>${u}, 2 in below navel</small></span><input type="number" id="f-belly" step="0.1" min="1" inputmode="decimal" value="${cur("belly")}" placeholder="${ph("belly")}"></label>
       <label>Waist <span><small>${u}, optional</small></span><input type="number" id="f-waist" step="0.1" min="1" inputmode="decimal" value="${cur("waist")}" placeholder="${ph("waist")}"></label>
       <label>Hips <span><small>${u}, optional</small></span><input type="number" id="f-hips" step="0.1" min="1" inputmode="decimal" value="${cur("hips")}" placeholder="${ph("hips")}"></label>
+` : `<div class="full row between"><span class="focus" style="font-size:13px">Measurements: monthly, next ${fmtShort(MS.next)}</span><button class="btn ghost sm" type="button" id="f-measure">Measure now</button></div>`}
       <label class="full">Note <span><small>optional</small></span><input type="text" id="f-note" maxlength="80" value="${ed ? esc(ed.note || "") : ""}" placeholder="e.g. after period week, bloated"></label>
       <div class="full row between"><button class="btn primary" type="submit">${ed ? "Save changes" : "Save entry"}</button><span class="focus">Units: <button type="button" class="btn ghost sm" id="toggleUnit">${u === "cm" ? "switch to inches" : "switch to cm"}</button></span></div>
     </form></div>
@@ -2853,11 +2863,12 @@ function renderLog() {
       <div><b>Thigh</b>Standing, weight even, tape around the upper thigh just below the glute fold.</div>
       <div><b>Lower belly</b>Tape 2 in (5 cm) below the navel, relaxed, at the end of a normal breath out.</div>
       <div><b>Steps</b>Your Pixel counts them in the Fitbit app. There is no connector Claude can reach for Fitbit or Health Connect, so copy the day's total into the Today screen each evening.</div>
-      <div><b>When</b>Monday morning, after the bathroom, before breakfast. Weight swings 1–2 kg around your period; look at the trend, not one day.</div>
+      <div><b>When</b>Weight: morning, after the bathroom, before breakfast. Arm, thigh and belly: once a month, same time of day.</div>
     </div></div>`;
   $("#entryForm").onsubmit = ev => {
     ev.preventDefault();
-    const num = id => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
+    const num = id => { const el = $(id); const v = el ? el.value.trim() : ""; return v === "" ? null : Number(v); };
+    state.measureOpen = false;
     const len = id => { const v = num(id); return v == null ? null : (s.unit === "cm" ? +cmToIn(v).toFixed(2) : v); };
     const e = { id: uid(), date: $("#f-date").value, weight: num("#f-weight"), arm: len("#f-arm"), thigh: len("#f-thigh"), belly: len("#f-belly"), waist: len("#f-waist"), hips: len("#f-hips"), note: $("#f-note").value.trim() || null };
     if (!e.date) return;
@@ -2875,6 +2886,7 @@ function renderLog() {
     else { state.entries.push(e); toast("Saved " + fmtShort(e.date)); }
     persist("entries"); renderAll(); state.tab = "progress"; showTab("progress");
   };
+  const fm = $("#f-measure"); if (fm) fm.onclick = () => { state.measureOpen = true; renderLog(); };
   const fc = $("#f-cancel"); if (fc) fc.onclick = () => { editEntry = null; renderLog(); };
   $("#toggleUnit").onclick = () => { state.settings.unit = s.unit === "cm" ? "in" : "cm"; persist("settings"); renderAll(); };
   const dxE = $("#dx-export");
