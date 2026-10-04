@@ -2793,6 +2793,24 @@ function measureStatus() {
   const d = parseISO(last); d.setMonth(d.getMonth() + 1); const next = isoOf(d);
   return { last, next, due: todayISO() >= next };
 }
+function makeDump() { return { app: "Move Your Body", exported: new Date().toISOString(), entries: state.entries, sessions: state.sessions, steps: state.steps, food: state.food, swaps: state.swaps, photos: state.photos, workouts: { list: state.mywork, source: state.myworkSource }, picks: state.picks, recipes: state.recipes, routines: state.routines, settings: state.settings }; }
+function macBase() { return (state.settings.macUrl || "https://chews-macbook-air.tailadc994.ts.net:11000").replace(/\/+$/, ""); }
+// The phone app has no server of its own, so its safety copy goes to the Mac whenever the Mac can be reached
+// (Tailscale on, Mac awake). Sent as plain text so the browser needs no permission round-trip first.
+async function backupToMac(silent) {
+  if (!STATIC) return false;
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(macBase() + "/api/backup", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify(makeDump()), signal: ctl.signal });
+    if (!r.ok) throw new Error("the Mac answered " + r.status);
+    lsSet("sculpt.lastMacBackup", todayISO()); lsSet("sculpt.lastBackup", todayISO());
+    if (!silent) toast("Backed up to your Mac"); if (state.tab === "log" && !typingNow()) renderLog();
+    return true;
+  } catch (e) { if (!silent) toast("Can't reach the Mac. Turn Tailscale on and wake the Mac."); return false; }
+  finally { clearTimeout(t); }
+}
+// Once a day, quietly, whenever the app is opened or brought back to the front.
+function autoBackup() { if (STATIC && lsGet("sculpt.lastMacBackup", "") !== todayISO() && (state.entries.length || Object.keys(state.food).length || Object.keys(state.sessions).length)) backupToMac(true); }
 let editEntry = null;   // id of the weigh-in being edited on the Log screen
 function renderLog() {
   const s = state.settings; const u = s.unit === "cm" ? "cm" : "in"; const last = sortedEntries().slice(-1)[0];
@@ -2852,10 +2870,10 @@ function renderLog() {
         <li>Or let this Mac do it: get a key from console.anthropic.com, save it as <b>anthropic.key</b> in the <b>sculpt-tracker</b> folder, then restart the server. Reading then works on every device, including your phone.</li></ol>
         <p class="focus" style="margin-top:8px;font-size:12.5px">The second way bills your own Anthropic account, roughly a few cents a photo, capped at 60 reads an hour.</p>`}
     </div>
-    ${framed ? "" : `<div class="card"><h3>Your data</h3>
+    ${framed ? "" : `<div class="card"><div class="row between"><h3>Backup</h3>${(() => { const lb = lsGet("sculpt.lastBackup", null); const days = lb ? daysBetween(lb, todayISO()) : null; return `<span class="chip ${lb && days <= 7 ? "good" : "warn"}">${lb ? (days === 0 ? "backed up today" : "last " + fmtShort(lb)) : "never backed up"}</span>`; })()}</div>
       <p class="focus" style="margin-top:4px">${STATIC ? "Stored on this phone." : ""}</p>
-      <div class="camerarow" style="margin-top:10px">${STATIC ? `<button class="btn primary" type="button" id="dx-mac">Get my data from the Mac</button>` : ""}<button class="btn" type="button" id="dx-export">Download my data</button><button class="btn" type="button" id="dx-import">Import a file</button><input type="file" id="dx-file" accept="application/json,.json" hidden></div>
-      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "The Mac must be awake with Tailscale on. Nothing here is removed." : ""}</p></div>`}
+      <div class="camerarow" style="margin-top:10px">${STATIC ? `<button class="btn primary" type="button" id="dx-macup">Back up to my Mac</button>` : ""}<button class="btn ${STATIC ? "" : "primary"}" type="button" id="dx-export">Back up to a file</button><button class="btn" type="button" id="dx-import">Restore from a file</button>${STATIC ? `<button class="btn" type="button" id="dx-mac">Restore from my Mac</button>` : ""}<input type="file" id="dx-file" accept="application/json,.json" hidden></div>
+      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "Auto: once a day to your Mac when Tailscale is on" + (lsGet("sculpt.lastMacBackup", "") ? " \u00b7 last " + fmtShort(lsGet("sculpt.lastMacBackup", "")) : " \u00b7 none yet") : ""}</p></div>`}
     ${STATIC ? `<div class="card"><h3>Food database key</h3><p class="focus" style="margin-top:4px">Optional: a free key from api.data.gov lifts the hourly search limit.</p>
       <form class="form" id="usdaForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>USDA key<input type="text" id="s-usda" autocomplete="off" value="${esc(state.settings.usdaKey || "")}" placeholder="paste it here"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>` : ""}
     <div class="card"><h3>Measuring guide</h3><div class="guide" style="margin-top:10px">
@@ -2891,10 +2909,16 @@ function renderLog() {
   $("#toggleUnit").onclick = () => { state.settings.unit = s.unit === "cm" ? "in" : "cm"; persist("settings"); renderAll(); };
   const dxE = $("#dx-export");
   if (dxE) dxE.onclick = () => {
-    const dump = { app: "Move Your Body", exported: new Date().toISOString(), entries: state.entries, sessions: state.sessions, steps: state.steps, food: state.food, swaps: state.swaps, photos: state.photos, workouts: { list: state.mywork, source: state.myworkSource }, picks: state.picks, recipes: state.recipes, routines: state.routines, settings: state.settings };
-    const blob = new Blob([JSON.stringify(dump)], { type: "application/json" }); const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = "move-your-body-" + todayISO() + ".json"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-    toast("Downloading your data");
+    const dump = makeDump();
+    const name = "move-your-body-backup-" + todayISO() + ".json";
+    const blob = new Blob([JSON.stringify(dump)], { type: "application/json" });
+    const finish = msg => { lsSet("sculpt.lastBackup", todayISO()); toast(msg); renderLog(); };
+    const download = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); finish("Backup saved to your downloads"); };
+    // On a phone, offer the share sheet so the file can go straight to Google Drive, email or a chat with yourself.
+    let file = null; try { file = new File([blob], name, { type: "application/json" }); } catch {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+      navigator.share({ files: [file], title: "Move Your Body backup" }).then(() => finish("Backup shared")).catch(e => { if (e && e.name !== "AbortError") download(); });
+    } else download();
   };
   const dxI = $("#dx-import"), dxF = $("#dx-file");
   if (dxI) dxI.onclick = () => dxF.click();
@@ -2923,14 +2947,16 @@ function renderLog() {
     let d; try { d = JSON.parse(await f.text()); } catch { toast("That file is not readable"); return; }
     importDump(d);
   };
+  const dxU = $("#dx-macup"); if (dxU) dxU.onclick = async () => { dxU.disabled = true; await backupToMac(false); dxU.disabled = false; };
   const dxM = $("#dx-mac");
   if (dxM) dxM.onclick = async () => {
-    const base = (state.settings.macUrl || "https://chews-macbook-air.tailadc994.ts.net:11000").replace(/\/+$/, "");
+    const base = macBase();
     dxM.disabled = true; const note = $("#dx-note"); note.textContent = "Asking your Mac\u2026";
     try {
-      const r = await fetch(base + "/api/export", { cache: "no-store" });
+      let r = await fetch(base + "/api/backup", { cache: "no-store" });
+      if (r.status === 404) r = await fetch(base + "/api/export", { cache: "no-store" });
       if (!r.ok) throw new Error("the Mac answered " + r.status);
-      const d = await r.json(); if (importDump(d)) note.textContent = "Done. Your data from the Mac is now on this phone.";
+      const d = await r.json(); if (importDump(d)) note.textContent = "Restored" + (d.backupFile ? " from " + d.backupFile.replace("phone-", "").replace(".json", "") : " from the Mac") + ".";
     } catch (e) {
       note.textContent = "Could not reach the Mac. It must be awake, and this phone must have Tailscale on. Then try again. (" + esc(e.message) + ")";
     } finally { dxM.disabled = false; }
@@ -3195,6 +3221,8 @@ window.addEventListener("resize", () => {
   clearTimeout(rt);
   rt = setTimeout(() => { if (typingNow()) return; if (state.tab === "progress") renderProgress(); if (state.tab === "food") renderFood(); }, 200);
 });
+setTimeout(autoBackup, 5000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(autoBackup, 1500); });
 connectDb(); connectSample(); checkServerVision();
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
   let swReloaded = false;
