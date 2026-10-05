@@ -1582,7 +1582,7 @@ function renderProgress() {
     </div><p class="focus" style="margin-top:8px;font-size:13px">${(() => { const M = measureStatus(); return M.last ? "Monthly \u00b7 last " + fmtShort(M.last) + " \u00b7 " + (M.due ? "due now" : "next " + fmtShort(M.next)) : "Monthly \u00b7 not measured yet"; })()}</p></div>
   <div class="card"><div class="row between"><h3>Steps</h3><span class="chip">last 14 days</span></div><div class="chart-wrap" id="chartSteps" style="margin-top:8px"></div>
     <div class="legend"><span><i></i>steps a day</span><span><i class="proj"></i>goal ${(s.stepGoal||8000).toLocaleString()}</span></div></div>
-  <div class="card">${drinkGoalHTML()}</div>
+  <div class="card">${drinkGoalHTML()}${drinkYearHTML()}</div>
   <div class="card"><h3>All entries</h3><div class="tbl" style="margin-top:8px">${es.length ? `<table><thead><tr><th>Date</th><th>kg</th><th>Arm</th><th>Thigh</th><th>Belly</th><th>Waist</th><th>Hips</th><th></th></tr></thead><tbody>` +
     [...es].reverse().map(e => `<tr><td>${fmtShort(e.date)}${e.note ? `<div class="tip" style="font-size:11px;color:var(--muted);white-space:normal">${esc(e.note)}</div>` : ""}</td><td class="num">${e.weight != null ? e.weight.toFixed(1) : "—"}</td><td class="num">${e.arm != null ? conv(e.arm).toFixed(1) : "—"}</td><td class="num">${e.thigh != null ? conv(e.thigh).toFixed(1) : "—"}</td><td class="num">${e.belly != null ? conv(e.belly).toFixed(1) : "—"}</td><td class="num">${e.waist != null ? conv(e.waist).toFixed(1) : "—"}</td><td class="num">${e.hips != null ? conv(e.hips).toFixed(1) : "—"}</td><td style="white-space:nowrap"><button class="del" data-edit="${e.id}" aria-label="Edit entry">\u270e</button><button class="del" data-del="${e.id}" aria-label="Delete entry">✕</button></td></tr>`).join("") + `</tbody></table>` : `<div class="empty">No entries yet. Add one on the Log screen.</div>`}</div></div>`;
   $("#screen-progress").innerHTML = html;
@@ -1630,6 +1630,34 @@ function drinkHistory() {
   const out = []; const start = mondayOf(parseISO(state.settings.drinkSince || "2026-09-28")), cur = mondayOf(new Date());
   for (let w = new Date(start); w < cur; w.setDate(w.getDate() + 7)) out.push(drinkWeek(new Date(w)));
   return out;
+}
+// The food log only keeps about 13 months, so drinking is also kept as monthly totals that never expire:
+// settings.drinkMonths = { "2026-10": { n, days, kcal, std } }. Months still in the log are recounted; older ones are left as stored.
+function syncDrinkMonths() {
+  const fresh = {};
+  for (const [iso, items] of Object.entries(state.food)) {
+    const d = (items || []).filter(x => x.meal === "Drinks"); const k = iso.slice(0, 7);
+    if (!fresh[k]) fresh[k] = { n: 0, days: 0, kcal: 0, std: 0 };
+    if (!d.length) continue;
+    fresh[k].n += d.reduce((a, x) => a + (x.qty || 1), 0); fresh[k].days++; fresh[k].kcal += d.reduce((a, x) => a + (x.kcal || 0), 0); fresh[k].std += d.reduce((a, x) => a + (x.alc || 0), 0) / 10;
+  }
+  const cur = state.settings.drinkMonths || {}; const out = { ...cur };
+  const cut = new Date(); cut.setDate(cut.getDate() - 400); const cutMonth = isoOf(cut).slice(0, 7);   // this month is being trimmed from the log: trust the stored total
+  for (const [k, v] of Object.entries(fresh)) if (!(k <= cutMonth && cur[k])) out[k] = { n: Math.round(v.n * 10) / 10, days: v.days, kcal: Math.round(v.kcal), std: Math.round(v.std * 10) / 10 };
+  if (JSON.stringify(out) !== JSON.stringify(cur)) { state.settings.drinkMonths = out; persist("settings"); }
+  return out;
+}
+function drinkYearHTML() {
+  const M = syncDrinkMonths(); const y = new Date().getFullYear(); const mon = "JFMAMJJASOND";
+  const year = yy => { let n = 0, days = 0, kcal = 0, std = 0; const per = []; for (let i = 1; i <= 12; i++) { const v = M[yy + "-" + String(i).padStart(2, "0")] || { n: 0, days: 0, kcal: 0, std: 0 }; per.push(v); n += v.n; days += v.days; kcal += v.kcal; std += v.std; } return { n: Math.round(n * 10) / 10, days, kcal, std: Math.round(std * 10) / 10, per }; };
+  const Y = year(y), top = Math.max(1, ...Y.per.map(v => v.n));
+  const past = [...new Set(Object.keys(M).map(k => +k.slice(0, 4)))].filter(v => v < y).sort((a, b) => b - a);
+  return `<div class="meal-h" style="margin-top:16px">${y} so far</div>
+    <div class="daytot" style="grid-template-columns:1fr 1fr;margin-top:8px">
+      <div><span>Drinks</span><b class="num">${Y.n}</b></div><div><span>Drinking days</span><b class="num">${Y.days}</b></div>
+      <div><span>Calories</span><b class="num">${Y.kcal.toLocaleString()} kcal</b></div><div><span>Standard drinks</span><b class="num">${Y.std}</b></div></div>
+    <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;align-items:end;height:84px;margin-top:12px">${Y.per.map((v, i) => `<div title="${v.n} drinks on ${v.days} days" style="display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="num" style="font-size:10px;color:var(--ink2)">${v.n || ""}</span><i style="display:block;width:100%;height:${Math.round(v.n / top * 52)}px;min-height:${v.n ? 3 : 1}px;background:var(--${v.n ? "accent" : "line"});border-radius:3px"></i><span style="font-size:10px;color:var(--muted);margin-top:2px">${mon[i]}</span></div>`).join("")}</div>
+    ${past.length ? `<table style="margin-top:10px"><thead><tr><th>Year</th><th>Drinks</th><th>Days</th><th>kcal</th></tr></thead><tbody>${past.map(yy => { const P = year(yy); return `<tr><td>${yy}</td><td class="num">${P.n}</td><td class="num">${P.days}</td><td class="num">${P.kcal.toLocaleString()}</td></tr>`; }).join("")}</tbody></table>` : ""}`;
 }
 // The goal panel, shown on Food and on Progress.
 function drinkGoalHTML() {
@@ -2435,7 +2463,7 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     const d = allDrinks()[+b.dataset.drink]; const day = foodDay(iso); const cur = day.find(i => i.meal === "Drinks" && i.name === d[0] && i.base);
     if (cur) { cur.qty = (cur.qty || 1) + 1; cur.kcal = Math.round(cur.base.kcal * cur.qty); cur.alc = Math.round(cur.base.alc * cur.qty * 10) / 10; state.food[iso] = [...day]; }
     else { const h = { level: d[3], why: d[4] }; state.food[iso] = [...day, { id: uid(), name: d[0], kcal: d[1], protein: 0, fat: 0, chol: 0, alc: d[2], qty: 1, base: { kcal: d[1], prot: 0, chol: 0, fat: 0, alc: d[2] }, meal: "Drinks", hist: h.level, why: h.why, t: Date.now() }]; }
-    persist("food"); const W = drinkWeek(mondayOf(parseISO(iso)));
+    persist("food"); syncDrinkMonths(); const W = drinkWeek(mondayOf(parseISO(iso)));
     toast(W.ok ? d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "") : "Over this week's limit: " + W.n + " drinks on " + W.days + " days"); renderFood();
   });
   document.querySelectorAll("[data-mydel]").forEach(b => b.onclick = () => { const r = state.recipes.find(x => x.id === b.dataset.mydel); if (!r || !confirm(`Remove \u201c${r.name}\u201d from my foods? Entries already logged stay.`)) return; state.recipes = state.recipes.filter(x => x !== r); persist("recipes"); renderFood(); });
