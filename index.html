@@ -1849,7 +1849,80 @@ const DISHES = [
   ["German pretzel, 1",340,10,"german"],
   ["British fish and chips, plate",850,35,"british"],
   ["British full English breakfast, plate",800,40,"british"],
-  ["British roast dinner, plate",700,45,"british"]
+  ["British roast dinner, plate",700,45,"british"],
+  // Singapore and Malaysian hawker food, with cholesterol: [name, kcal, protein, cuisine, cholesterol mg]
+  ["Sliced fish soup with rice, bowl",350,28,"singaporean",60],
+  ["Sliced fish soup, no rice",180,25,"singaporean",55],
+  ["Sliced fish bee hoon, milky",450,28,"singaporean",60],
+  ["Yong tau foo, soup, 6 pieces",300,20,"singaporean",40],
+  ["Yong tau foo, dry with sauce",450,20,"singaporean",40],
+  ["Fishball noodle soup",400,18,"singaporean",40],
+  ["Wanton mee, dry",450,20,"singaporean",55],
+  ["Mee pok, dry",500,22,"singaporean",70],
+  ["Ban mian, soup",450,20,"singaporean",110],
+  ["Prawn mee, soup",400,25,"singaporean",180],
+  ["Lor mee, bowl",500,18,"singaporean",150],
+  ["Hokkien mee, plate",620,25,"singaporean",180],
+  ["Fried carrot cake, white",500,10,"singaporean",170],
+  ["Fried carrot cake, black",560,10,"singaporean",170],
+  ["Oyster omelette, plate",600,22,"singaporean",320],
+  ["Mee goreng, plate",580,18,"singaporean",120],
+  ["Mee rebus, bowl",550,15,"singaporean",110],
+  ["Mee siam, bowl",500,15,"singaporean",110],
+  ["Lontong, bowl",480,14,"singaporean",40],
+  ["Curry chicken noodle, bowl",600,25,"singaporean",80],
+  ["Nasi padang, rice + 2 dishes",700,30,"singaporean",110],
+  ["Economy rice (cai png), rice + 3 dishes",650,28,"singaporean",90],
+  ["Bak kut teh with rice",560,35,"singaporean",120],
+  ["Kway chap, plate",650,30,"singaporean",350],
+  ["Duck rice, plate",560,30,"singaporean",100],
+  ["Roast pork rice (sio bak), plate",700,30,"singaporean",110],
+  ["Char siu rice, plate",620,28,"singaporean",90],
+  ["Nasi briyani with chicken",850,35,"singaporean",110],
+  ["Hainanese pork chop rice, plate",750,30,"singaporean",110],
+  ["Claypot rice, 1",650,25,"singaporean",110],
+  ["Nasi goreng pattaya",750,25,"singaporean",220],
+  ["Ayam penyet with rice",800,40,"singaporean",130],
+  ["Nasi lemak with fried chicken",850,35,"singaporean",120],
+  ["Mala xiang guo, plate",700,30,"singaporean",120],
+  ["Chilli crab, 1 serving",450,35,"singaporean",150],
+  ["Cereal prawns, plate",400,25,"singaporean",200],
+  ["Sambal stingray, plate",350,40,"singaporean",90],
+  ["Sambal kangkong, plate",150,4,"singaporean",0],
+  ["Chicken satay, 10 sticks with sauce",500,40,"singaporean",110],
+  ["Otah, 2 pieces",120,10,"singaporean",40],
+  ["Ngoh hiang platter",450,18,"singaporean",110],
+  ["Rojak, plate",400,10,"singaporean",0],
+  ["Tahu goreng, plate",350,15,"singaporean",0],
+  ["Popiah, 1 roll",190,7,"singaporean",20],
+  ["Curry puff, 1",220,5,"singaporean",10],
+  ["Chwee kueh, 4 pieces",300,4,"singaporean",0],
+  ["Chee cheong fun, plate",300,7,"singaporean",20],
+  ["Soon kueh, 2",230,4,"singaporean",0],
+  ["Siew mai, 4 pieces",200,12,"singaporean",50],
+  ["Har gow, 4 pieces",160,8,"singaporean",40],
+  ["Bak chang (rice dumpling), 1",400,12,"singaporean",60],
+  ["Kaya toast, 2 slices",300,6,"singaporean",30],
+  ["Soft-boiled eggs, 2",150,12,"singaporean",370],
+  ["Roti prata, 1 plain",240,5,"singaporean",0],
+  ["Roti prata, egg",320,10,"singaporean",190],
+  ["Murtabak, chicken",650,30,"singaporean",150],
+  ["Teh tarik, 1 cup",160,4,"singaporean",10],
+  ["Kopi, 1 cup",120,2,"singaporean",8],
+  ["Kopi C, 1 cup",70,2,"singaporean",5],
+  ["Kopi O kosong",5,0,"singaporean",0],
+  ["Teh, 1 cup",110,2,"singaporean",5],
+  ["Milo, hawker cup",190,5,"singaporean",10],
+  ["Bubble milk tea with pearls",450,5,"singaporean",15],
+  ["Sugarcane juice, 1 glass",180,0,"singaporean",0],
+  ["Lime juice, 1 glass",90,0,"singaporean",0],
+  ["Bandung, 1 glass",150,2,"singaporean",5],
+  ["Ice kacang, bowl",250,2,"singaporean",5],
+  ["Chendol, bowl",350,3,"singaporean",0],
+  ["Tau huay, bowl",150,6,"singaporean",0],
+  ["Soya bean milk, 1 cup",120,6,"singaporean",0],
+  ["Durian, 3 seeds",200,3,"singaporean",0],
+  ["Pineapple tarts, 3",180,2,"singaporean",20]
 ];
 
 // Ingredients for building your own dish. Per 100 g: [name, kcal, protein g, cholesterol mg, {unit: grams}].
@@ -1976,6 +2049,7 @@ const PICKS = [
 ];
 // Fat in grams for the built-in dishes and quick picks, by name. Typical values; a cook's hand with oil moves them a lot.
 const DISH_FAT = {"Chinese radish daikon soup (luo bo tang), bowl":3,"Japanese daikon radish miso soup, bowl":2,"Japanese simmered daikon radish (furofuki), bowl":2,"Korean radish daikon soup (mu guk), bowl":5,"Chinese winter melon soup, bowl":3,"Chinese hot & sour soup, bowl":3,"Chinese egg drop soup, bowl":3,"Chinese chicken curry, 1 cup":22,"Chinese tomato & egg stir-fry, plate":16,"Chinese wonton soup, bowl":6,"Chinese congee with chicken, bowl":5,"Chinese steamed fish with ginger, plate":9,"Chinese steamed chicken with ginger & scallion, plate":14,"Chinese stir-fried bok choy with garlic, plate":7,"Chinese mapo tofu, 1 cup":20,"Chinese char siu pork, 100 g":13,"Chinese dumplings, 6 steamed":12,"Chinese dumplings, 6 fried":22,"Chinese chow mein, plate":20,"Chinese sweet & sour pork, plate":30,"Chinese kung pao chicken, plate":28,"Chinese beef & broccoli, plate":20,"Dim sum, 4 pieces mixed":15,"Japanese miso soup, bowl":1,"Japanese chicken curry, 1 cup":16,"Japanese vegetable soup (kenchinjiru), bowl":5,"Japanese chawanmushi, 1 cup":5,"Japanese salmon sashimi, 6 pieces":9,"Japanese salmon nigiri, 6 pieces":7,"Japanese maki roll, 6 pieces":4,"Japanese chicken teriyaki with rice, plate":15,"Japanese shio yakitori, 3 skewers":11,"Japanese tonkotsu ramen, bowl":30,"Japanese shoyu ramen, bowl":16,"Japanese udon in broth, bowl":4,"Japanese chicken katsu curry, plate":35,"Japanese tamagoyaki, 3 slices":8,"Japanese edamame, 1 cup":8,"Japanese onigiri, 1":1,"Korean bibimbap, bowl":18,"Korean bulgogi with rice, plate":22,"Korean samgyetang, bowl":30,"Korean kimchi jjigae, bowl":18,"Korean japchae, plate":14,"Korean tteokbokki, 1 cup":5,"Korean kimchi, half cup":0,"Thai tom yum goong, bowl":6,"Thai tom kha gai, bowl":26,"Thai chicken curry, 1 cup":22,"Thai green curry with rice, plate":30,"Thai red curry with rice, plate":29,"Thai massaman curry with rice, plate":35,"Thai pad thai, plate":22,"Thai pad krapow with rice & egg, plate":25,"Thai som tam (papaya salad), plate":3,"Thai mango sticky rice, plate":12,"Vietnamese pho bo, bowl":10,"Vietnamese pho ga, bowl":7,"Vietnamese bun cha, plate":20,"Vietnamese banh mi, 1":20,"Vietnamese fresh spring rolls, 2":2,"Vietnamese lemongrass chicken with rice, plate":18,"Sri Lankan rice & curry plate":22,"Sri Lankan chicken curry, 1 cup":20,"Sri Lankan dhal curry (parippu), 1 cup":9,"Sri Lankan fish ambul thiyal, 1 cup":12,"Sri Lankan pol sambol, 2 tbsp":6,"Sri Lankan gotukola sambol, half cup":4,"Sri Lankan kottu roti, plate":28,"Sri Lankan string hoppers (10) with curry":12,"Sri Lankan hoppers (appam), 2":6,"Sri Lankan egg hopper, 1":8,"Sri Lankan pittu, 1 cup":10,"Sri Lankan coconut roti, 1":7,"Sri Lankan red rice, 1 cup":2,"Sri Lankan cashew curry, 1 cup":25,"Sri Lankan pumpkin curry, 1 cup":12,"Indian chicken curry, 1 cup":18,"Indian chicken tikka masala with rice, plate":28,"Indian butter chicken with rice, plate":35,"Indian dal tadka, 1 cup":7,"Indian palak paneer, 1 cup":22,"Indian chana masala, 1 cup":9,"Indian chicken biryani, 1 cup":12,"Indian roti / chapati, 1":2,"Indian naan, 1":5,"Indian plain dosa, 1":6,"Indian masala dosa, 1":11,"Indian idli with sambar, 2":3,"Indian samosa, 1":14,"Indian raita, half cup":3,"Indian tandoori chicken, 2 pieces":14,"Malaysian nasi lemak, plate":28,"Malaysian char kway teow, plate":35,"Malaysian laksa, bowl":32,"Malaysian roti canai, 1":13,"Malaysian chicken satay, 4 sticks":16,"Malaysian beef rendang, 1 cup":34,"Indonesian nasi goreng, plate":22,"Indonesian gado-gado, plate":26,"Indonesian soto ayam, bowl":12,"Singaporean hainanese chicken rice, plate":20,"Singaporean bak chor mee, bowl":18,"Filipino chicken adobo with rice, plate":28,"Filipino chicken tinola, bowl":12,"Filipino sinigang na baboy, bowl":24,"Filipino pancit, plate":14,"Italian spaghetti bolognese, plate":20,"Italian pasta with tomato sauce, plate":9,"Italian pasta aglio e olio, plate":20,"Italian margherita pizza, 2 slices":18,"Italian risotto, 1 cup":11,"Italian lasagne, 1 slice":27,"Italian minestrone soup, bowl":5,"Italian chicken piccata, plate":18,"French roast chicken with vegetables, plate":20,"French omelette, 3 eggs":23,"French croissant, 1":14,"French onion soup, bowl":18,"French ratatouille, 1 cup":8,"French crepe, 1 plain":5,"Spanish tortilla espanola, 1 slice":15,"Spanish seafood paella, 1 cup":10,"Spanish gazpacho, bowl":7,"Spanish grilled chicken a la plancha, plate":12,"Greek chicken souvlaki with pita, 1":20,"Greek salad, plate":23,"Greek moussaka, 1 slice":28,"Turkish chicken shish with rice, plate":16,"Turkish lentil soup (mercimek), bowl":5,"Lebanese hummus with pita, plate":15,"Lebanese chicken shawarma wrap, 1":24,"Lebanese tabbouleh, 1 cup":8,"Lebanese falafel, 4 pieces":15,"Mexican chicken tacos, 2":12,"Mexican beef burrito, 1":28,"Mexican quesadilla, 1":28,"Mexican guacamole, quarter cup":8,"Mexican chicken fajitas, plate":18,"American cheeseburger, 1":30,"American grilled chicken salad, plate":18,"American pancakes, 3 with syrup":14,"American BLT sandwich, 1":26,"American mac and cheese, 1 cup":18,"German schnitzel with potatoes, plate":35,"German bratwurst with sauerkraut, plate":38,"German pretzel, 1":3,"British fish and chips, plate":45,"British full English breakfast, plate":55,"British roast dinner, plate":30,"Boiled egg (1)":5,"Egg omelette, 2 eggs":14,"Oats 40 g, cooked in water":3,"Oats with milk, bowl":8,"Whole-wheat toast, 1 slice":1,"Peanut butter, 1 tbsp":8,"Greek yogurt 150 g":1,"Protein shake, 1 scoop":2,"Banana":0.4,"Apple":0.3,"Orange":0.2,"Mango, 1 cup":0.6,"Papaya, 1 cup":0.4,"Strawberries, 1 cup":0.5,"Pineapple, 1 cup":0.2,"Blueberries, 1 cup":0.5,"Almonds, 10":6,"Walnuts, 30 g":20,"Cashews, 30 g":13,"Chicken breast 100 g, grilled":3.6,"Chicken thigh 100 g":11,"Salmon 100 g":13,"White fish 100 g, steamed":1,"Tuna, canned 100 g":1,"Shrimp / prawns 100 g":0.3,"Tofu 100 g":4.8,"Tempeh 100 g":11,"Paneer 100 g":20,"Lean beef 100 g":15,"Pork 100 g":14,"Bacon, 2 slices":7,"Ham, 2 slices":2,"White rice, 1 cup cooked":0.4,"Brown rice, 1 cup":1.8,"Roti / chapati (1)":2,"Naan (1)":5,"Dal, 1 cup":7,"Chicken curry, 1 cup":17,"Biryani, 1 cup":12,"Palak paneer, 1 cup":22,"Idli (2) + sambar":3,"Dosa, plain":6,"String hoppers (10) + curry":12,"Hoppers (2)":6,"Pol sambol, 2 tbsp":5,"Kottu roti, plate":28,"Sushi, 6 pieces":4,"Miso soup":1,"Ramen bowl":20,"Pho bowl":8,"Pad thai, plate":22,"Thai green curry + rice":30,"Fried rice, plate":18,"Stir-fry chicken & veg":14,"Kimchi, ½ cup":0,"Bibimbap bowl":18,"Nasi lemak, plate":28,"Chicken satay, 4 sticks":16,"Pasta with tomato sauce, 1 cup":6,"Pizza, 1 slice":10,"Caesar salad":26,"Burger, single":26,"Sandwich, chicken":14,"Shawarma wrap":24,"Hummus, ¼ cup":6,"Tacos, 2 chicken":12,"Guacamole, ¼ cup":8,"Avocado, half":15,"Cheddar cheese 30 g":10,"Fresh mozzarella 30 g":6,"Sweet potato 100 g":0.1,"Potato, boiled 150 g":0.2,"Broccoli, 1 cup":0.6,"Mixed salad + olive oil":12,"Tomato (1)":0.2,"Spinach, 1 cup cooked":0.5,"Eggplant, 1 cup cooked":0.2,"Olive oil, 1 tbsp":13.3,"Coconut milk, ½ cup":22,"Coffee, black":0,"Latte, regular":6,"Milk tea / chai, 1 cup":4,"Green tea":0,"Glass of wine":0,"Beer, 330 ml":0,"Dark chocolate 30 g":12,"Ice cream, 1 scoop":7,"Biscuits (3)":6};
+Object.assign(DISH_FAT, {"Sliced fish soup with rice, bowl":6,"Sliced fish soup, no rice":4,"Sliced fish bee hoon, milky":12,"Yong tau foo, soup, 6 pieces":10,"Yong tau foo, dry with sauce":18,"Fishball noodle soup":8,"Wanton mee, dry":14,"Mee pok, dry":18,"Ban mian, soup":12,"Prawn mee, soup":8,"Lor mee, bowl":14,"Hokkien mee, plate":22,"Fried carrot cake, white":28,"Fried carrot cake, black":30,"Oyster omelette, plate":40,"Mee goreng, plate":22,"Mee rebus, bowl":18,"Mee siam, bowl":14,"Lontong, bowl":22,"Curry chicken noodle, bowl":28,"Nasi padang, rice + 2 dishes":28,"Economy rice (cai png), rice + 3 dishes":24,"Bak kut teh with rice":22,"Kway chap, plate":30,"Duck rice, plate":18,"Roast pork rice (sio bak), plate":36,"Char siu rice, plate":20,"Nasi briyani with chicken":32,"Hainanese pork chop rice, plate":32,"Claypot rice, 1":22,"Nasi goreng pattaya":30,"Ayam penyet with rice":36,"Nasi lemak with fried chicken":38,"Mala xiang guo, plate":45,"Chilli crab, 1 serving":22,"Cereal prawns, plate":24,"Sambal stingray, plate":14,"Sambal kangkong, plate":10,"Chicken satay, 10 sticks with sauce":25,"Otah, 2 pieces":6,"Ngoh hiang platter":28,"Rojak, plate":16,"Tahu goreng, plate":22,"Popiah, 1 roll":6,"Curry puff, 1":13,"Chwee kueh, 4 pieces":16,"Chee cheong fun, plate":8,"Soon kueh, 2":8,"Siew mai, 4 pieces":10,"Har gow, 4 pieces":4,"Bak chang (rice dumpling), 1":14,"Kaya toast, 2 slices":12,"Soft-boiled eggs, 2":10,"Roti prata, 1 plain":10,"Roti prata, egg":15,"Murtabak, chicken":30,"Teh tarik, 1 cup":4,"Kopi, 1 cup":3,"Kopi C, 1 cup":2,"Kopi O kosong":0,"Teh, 1 cup":2,"Milo, hawker cup":4,"Bubble milk tea with pearls":8,"Sugarcane juice, 1 glass":0,"Lime juice, 1 glass":0,"Bandung, 1 glass":2,"Ice kacang, bowl":2,"Chendol, bowl":12,"Tau huay, bowl":4,"Soya bean milk, 1 cup":3,"Durian, 3 seeds":6,"Pineapple tarts, 3":8});
 // Fat per 100 g for the ingredient table.
 const ING_FAT = {"Lettuce (iceberg or romaine)":0.2,"Egg, boiled":10.6,"Egg white, boiled":0.2,"Egg yolk":26.5,"Mayonnaise":75,"Spicy mayo":65,"Light mayonnaise":33,"Kewpie mayo":75,"Tartar sauce":50,"Caesar dressing":58,"Thousand Island dressing":35,"Sesame dressing (Japanese)":42,"Olive oil":100,"Sesame oil":100,"Balsamic vinegar":0,"Lemon juice":0.2,"Sriracha / chilli sauce":0.9,"Ketchup":0.1,"Butter":81,"Cucumber":0.1,"Tomato":0.2,"Carrot":0.2,"Onion":0.1,"Bell pepper":0.3,"Sweet corn":1.4,"Avocado":14.7,"Spinach, raw":0.4,"Cabbage, raw":0.1,"Chickpeas, cooked":2.6,"Chicken breast, cooked":3.6,"Chicken thigh, cooked":10.9,"Tuna, canned in water":0.8,"Salmon, cooked":12.4,"Prawns / shrimp, cooked":0.3,"Sardines, canned":11.5,"Ham":5.5,"Bacon, cooked":42,"Lean beef, cooked":15,"Tofu":4.8,"Cheddar cheese":33,"Feta cheese":21,"Parmesan, grated":29,"Mozzarella, fresh":20,"Croutons":6.6,"Sunflower seeds":51,"Walnuts":65,"Quinoa, cooked":1.9,"Rice, white, cooked":0.3,"Bread, wholemeal":3.4,"Milk, full cream":3.3,"Greek yogurt, plain":5,"Apple":0.2,"Soy sauce, light":0.6,"Soy sauce, dark":0.1,"Oyster sauce":0.3,"Hoisin sauce":3.4,"Shaoxing wine":0,"Chinese black vinegar":0,"Sugar":0,"Cornstarch":0.1,"Cooking oil (vegetable / peanut)":100,"Garlic":0.5,"Ginger":0.8,"Spring onion":0.2,"Bok choy / pak choy":0.2,"Choy sum":0.2,"Chinese cabbage (napa)":0.2,"Shiitake mushroom":0.5,"Button mushroom":0.3,"Daikon / white radish":0.1,"Pork, lean, cooked":7,"Pork, minced, cooked":20.8,"Pork belly":53,"Pork ribs, cooked":28,"Chicken wing, cooked":19.5,"Whole chicken with skin, cooked":13.6,"White fish fillet, steamed":1.2,"Fish ball":1.5,"Chinese sausage (lap cheong)":45,"Egg noodles, cooked":2.1,"Rice noodles (hor fun), cooked":0.2,"Rice vermicelli (bee hoon), cooked":0.2,"Brown rice, cooked":1,"Silken tofu":2.7,"Corn on the cob":1.5,"Red dates (dried jujube)":1.1,"Goji berries, dried":0.4,"Potato, boiled":0.1,"Pasta, cooked":0.9,"Pasta, dry":1.5,"Cream, heavy":36,"Cooking cream, light":19,"Canned tomatoes":0.3,"Tomato paste":0.5,"Flour, plain":1,"Chicken stock":0.2,"Broccoli, cooked":0.4,"Zucchini":0.3,"Pumpkin":0.1,"Pork sausage, cooked":27,"Minced beef (15% fat), cooked":15.4,"Lamb, cooked":21,"Mashed potato (milk and butter)":4.2,"Egg, raw (for cooking)":9.5,"Honey":0,"Rolled oats":6.5};
 const r1 = v => Math.round(v * 10) / 10;
@@ -2001,9 +2075,9 @@ const HIST = [
 // Bad-cholesterol (LDL) rules, read from the food's name: what kind of fat it carries matters more than how much.
 // Levels: "high" raises LDL, "mod" some effect, "good" fats that help lower it. Each key is matched from the start of a word.
 const LDL = [
-  ["high", "saturated fat", ["butter", "ghee", "cream", "chees", "cheddar", "parmesan", "mozzarella", "paneer", "feta", "bacon", "sausage", "salami", "pepperoni", "chorizo", "lap cheong", "pork belly", "char siu", "ribs?\\b", "lamb", "rendang", "burger", "bratwurst", "full english", "spam\\b", "luncheon", "hot dog", "ice cream", "coconut milk", "coconut cream", "coconut oil", "palm oil", "lard", "croissant", "pastr", "pies?\\b", "cake", "doughnut", "donut", "biscuit", "cookie", "katsu", "tonkotsu", "laksa", "massaman", "green curry", "red curry", "butter chicken", "tikka masala", "korma", "nasi lemak", "moussaka", "lasagn", "mac and cheese", "pizza", "quesadilla", "carbonara", "alfredo", "milk chocolate", "white chocolate", "whittaker", "kitkat", "kit kat", "snickers", "nutella"]],
-  ["high", "deep-fried food", ["fried", "fries", "chips\\b", "crisps", "tempura", "schnitzel", "samosa", "pakora", "roti canai", "char kway teow", "instant noodle", "margarine", "shortening", "nugget", "spring roll", "kottu"]],
-  ["mod", "some saturated fat or cholesterol", ["eggs?\\b", "yolk", "omelet", "tamagoyaki", "prawn", "shrimp", "squid", "calamari", "crab", "lobster", "beef", "steak", "pork", "mince", "chicken thigh", "wing", "duck", "liver", "milk", "latte", "cappuccino", "chai", "yogurt", "yoghurt", "curry", "satay", "chocolate", "ramen", "biryani", "pol sambol", "coconut", "mayo", "falafel", "naan", "pad thai", "bibimbap", "burrito", "taco"]],
+  ["high", "saturated fat", ["butter", "ghee", "cream", "chees", "cheddar", "parmesan", "mozzarella", "paneer", "feta", "bacon", "sausage", "salami", "pepperoni", "chorizo", "lap cheong", "pork belly", "char siu", "ribs?\\b", "lamb", "rendang", "burger", "bratwurst", "full english", "spam\\b", "luncheon", "hot dog", "ice cream", "coconut milk", "coconut cream", "coconut oil", "palm oil", "lard", "croissant", "pastr", "pies?\\b", "cake", "doughnut", "donut", "biscuit", "cookie", "katsu", "tonkotsu", "laksa", "massaman", "green curry", "red curry", "butter chicken", "tikka masala", "korma", "nasi lemak", "moussaka", "lasagn", "mac and cheese", "pizza", "quesadilla", "carbonara", "alfredo", "milk chocolate", "white chocolate", "whittaker", "kitkat", "kit kat", "snickers", "nutella", "kway chap", "hokkien mee", "roast pork", "sio bak", "mala", "oyster omelette", "murtabak", "chendol", "kaya", "duck rice", "bak kut teh", "chilli crab", "cereal prawn", "bubble"]],
+  ["high", "deep-fried food", ["fried", "fries", "chips\\b", "crisps", "tempura", "schnitzel", "samosa", "pakora", "roti canai", "char kway teow", "instant noodle", "margarine", "shortening", "nugget", "spring roll", "kottu", "curry puff", "prata", "penyet", "ngoh hiang", "carrot cake", "goreng", "popiah"]],
+  ["mod", "some saturated fat or cholesterol", ["eggs?\\b", "yolk", "omelet", "tamagoyaki", "prawn", "shrimp", "squid", "calamari", "crab", "lobster", "beef", "steak", "pork", "mince", "chicken thigh", "wing", "duck", "liver", "milk", "latte", "cappuccino", "chai", "yogurt", "yoghurt", "curry", "satay", "chocolate", "ramen", "biryani", "pol sambol", "coconut", "mayo", "falafel", "naan", "pad thai", "bibimbap", "burrito", "taco", "briyani", "teh tarik", "kopi\\b", "teh\\b", "milo", "lontong", "mee rebus", "mee siam", "wanton", "wonton", "satay", "otah", "prawn mee", "lor mee", "claypot"]],
   ["good", "unsaturated fats that help lower LDL", ["olive oil", "avocado", "guacamole", "salmon", "sardine", "mackerel", "tuna", "almond", "walnut", "cashew", "peanut", "pistachio", "nuts?\\b", "seeds?\\b", "sesame", "flax", "chia", "oats?\\b", "oatmeal", "tofu", "tempeh", "edamame", "hummus", "chickpea", "lentil", "dal\\b", "dhal", "beans?\\b"]]
 ].map(([level, why, keys]) => [level, why, new RegExp("\\b(" + keys.join("|") + ")", "i")]);
 // Returns { level, why, hit } or null when the name gives no sign either way. A high cholesterol figure lifts it to at least "mod".
@@ -2142,6 +2216,7 @@ function renderFood() {
         ${state.sample ? `<button class="btn" type="button" id="ff-ai">Estimate with Claude</button>` : ""}
         <button class="btn" type="button" id="ff-cam">\u{1F4F7} ${canRead() ? "Photo" : "Attach photo"}</button>
         <button class="btn" type="button" id="ff-gal">\u{1F5BC} Gallery</button>
+        <button class="btn" type="button" id="ff-scan">\u2016\u2016 Barcode</button>
         <input type="file" id="ff-file" accept="image/*" capture="environment" hidden>
         <input type="file" id="ff-gfile" accept="image/*" hidden>
       </div>
@@ -2245,15 +2320,17 @@ function renderFood() {
     formPrefill = null;
   }
   const showLdl = () => { const L = ldlCheck(nameEl.value, cEl.value.trim() === "" ? null : Number(cEl.value)); $("#ff-ldl").innerHTML = !nameEl.value.trim() ? "" : L ? `<span class="chip ${ldlCls(L.level)}">${ldlLbl(L.level)}</span> ${L.why} (\u201c${esc(L.hit)}\u201d)` : ""; };
-  nameEl.oninput = () => { showHist(); showLdl(); showPicks(); autoFill(); updateCompare("ff-cmp", nameEl.value); };
+  nameEl.oninput = () => { showHist(); showPicks(); autoFill(); showLdl(); updateCompare("ff-cmp", nameEl.value); };
   cEl.addEventListener("input", showLdl); if (nameEl.value.trim()) showLdl();
   const onl = $("#ff-online"), onlRes = $("#ff-online-res");
   let lastOnline = [];
   // Fill the form from one online result: name with its serving, calories, protein, cholesterol.
+  const scanBtn = $("#ff-scan"); if (scanBtn) scanBtn.onclick = () => openScanner();
+  scanFill = (r) => { useOnline(r, true); };
   const useOnline = (r, auto) => {
     const use = r.perServing && r.serving ? r.perServing : r.per100;
     const label = r.perServing && r.serving ? (r.serving.label || "1 serving") : "100 g";
-    nameEl.value = `${r.brand ? r.brand + " " : ""}${r.name} (${label})`.slice(0, 120);
+    nameEl.value = `${r.brand && !r.name.toLowerCase().includes(r.brand.toLowerCase()) ? r.brand + " " : ""}${r.name} (${label})`.slice(0, 120);
     setBase(Math.round(use.kcal), use.prot == null ? null : Math.round(use.prot * 10) / 10, label, use.chol == null ? null : Math.round(use.chol), use.fat == null ? null : r1(use.fat));
     autoFilled = false; showHist();
     toast((auto ? "Filled in from " : "Switched to ") + r.src + (use.chol == null ? " — no cholesterol figure for this one" : "") + ". Set how many portions, then Add.");
@@ -2508,8 +2585,8 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
   czQ.oninput = drawCz; drawCz();
 }
 const ALL_FOODS = DISHES.concat(PICKS.map(p => [p[0], p[1], p[2], null]));
-const CUISINE_WORDS = ["chinese","japanese","korean","thai","vietnamese","sri lankan","lankan","indian","malaysian","indonesian","singaporean","filipino","italian","french","spanish","greek","turkish","lebanese","mexican","american","german","british"];
-function cuisineIn(q) { const n = " " + q + " "; for (const c of CUISINE_WORDS) if (n.includes(c)) return c === "lankan" ? "sri lankan" : c; return null; }
+const CUISINE_WORDS = ["chinese","japanese","korean","thai","vietnamese","sri lankan","lankan","indian","malaysian","indonesian","singaporean","singapore","hawker","filipino","italian","french","spanish","greek","turkish","lebanese","mexican","american","german","british"];
+function cuisineIn(q) { const n = " " + q + " "; for (const c of CUISINE_WORDS) if (n.includes(c)) return c === "lankan" ? "sri lankan" : c === "singapore" || c === "hawker" ? "singaporean" : c; return null; }
 // Score a query against the food table. Naming a cuisine pulls that cuisine's dish to the top
 // and pushes other cuisines' versions of the same dish down.
 function scoreFood(n, p) {
@@ -2615,6 +2692,65 @@ async function directSearch(q) {
   return { q, results: uniq.slice(0, 20), notes };
 }
 // Open Food Facts is worldwide: keep only names written in Latin letters, and only results that mention a word she typed.
+/* ---------- barcode scanner: packaged food and drinks, looked up in Open Food Facts ---------- */
+let scanFill = null;      // set by the Food screen: fills the Add form from a product
+let scanStream = null, scanTimer = null;
+function stopScanner() { clearInterval(scanTimer); scanTimer = null; if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; } }
+async function lookupBarcode(code) {
+  const r = await fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json?fields=product_name,product_name_en,brands,serving_size,serving_quantity,nutriments");
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("Open Food Facts answered " + r.status);
+  const d = await r.json(); const p = d.product; if (!p || d.status === 0) return null;
+  const num = v => { const f = Number(v); return Number.isFinite(f) ? f : null; };
+  const n = p.nutriments || {}; let kcal = num(n["energy-kcal_100g"]); if (kcal == null && num(n.energy_100g) != null) kcal = Math.round(num(n.energy_100g) / 4.184 * 10) / 10;
+  const name = (p.product_name_en || p.product_name || "").trim(); if (kcal == null || !name) return { name: name || "Unknown product", nodata: true };
+  const cg = num(n.cholesterol_100g);
+  const per100 = { kcal, prot: num(n.proteins_100g), fat: num(n.fat_100g), sat: num(n["saturated-fat_100g"]), chol: cg == null ? null : Math.round(cg * 1000 * 10) / 10 };
+  const grams = num(p.serving_quantity); const serving = grams ? { label: p.serving_size || (grams + " g"), grams } : null;
+  const scale = g => Object.fromEntries(Object.entries(per100).map(([k, v]) => [k, v == null ? null : Math.round(v * g / 100 * 10) / 10]));
+  let br = p.brands || ""; br = String(br).split(",")[0].trim();
+  return { src: "barcode", name, brand: br, per100, serving, measures: [], perServing: serving ? scale(grams) : null, code };
+}
+async function useBarcode(code) {
+  const body = $("#scanBody"); if (body) body.innerHTML = `<p class="focus">Looking up ${esc(code)}\u2026</p>`;
+  try {
+    const r = await lookupBarcode(code);
+    const dlg = $("#scanDlg");
+    if (!r) { if (body) body.innerHTML = `<p class="focus"><b>Not in the database.</b> Type the name and calories in the form instead.</p><div class="camerarow" style="margin-top:10px"><button class="btn" type="button" id="sc-again">Scan another</button><button class="btn ghost" type="button" id="sc-close">Close</button></div>`; }
+    else if (r.nodata) { if (body) body.innerHTML = `<p class="focus"><b>${esc(r.name)}</b>: the database has no nutrition figures for it.</p><div class="camerarow" style="margin-top:10px"><button class="btn" type="button" id="sc-again">Scan another</button><button class="btn ghost" type="button" id="sc-close">Close</button></div>`; }
+    else {
+      if (scanFill) scanFill(r);
+      const use = r.perServing && r.serving ? r.perServing : r.per100;
+      if (dlg) dlg.close();
+      toast(`${r.brand ? r.brand + " " : ""}${r.name}: ${Math.round(use.kcal)} kcal${use.sat != null ? " \u00b7 " + use.sat + " g saturated fat" : ""}${use.chol == null ? " \u00b7 no cholesterol figure" : ""}`);
+      const cat = $("#ff-save"); if (cat) cat.checked = true;
+      return;
+    }
+    const ag = $("#sc-again"); if (ag) ag.onclick = () => openScanner(); const cl = $("#sc-close"); if (cl) cl.onclick = () => $("#scanDlg").close();
+  } catch (e) { if (body) body.innerHTML = `<p class="focus">Could not look it up: ${esc(e.message)}</p>`; }
+}
+async function openScanner() {
+  let dlg = $("#scanDlg");
+  if (!dlg) { document.body.insertAdjacentHTML("beforeend", `<dialog id="scanDlg"><div class="sheet" id="scanBody"></div></dialog>`); dlg = $("#scanDlg"); dlg.addEventListener("close", stopScanner); dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); }
+  const body = $("#scanBody");
+  const manual = `<form id="scanManual" class="form" style="margin-top:10px;grid-template-columns:1fr auto"><label>Barcode number<input type="text" id="sc-code" inputmode="numeric" autocomplete="off" placeholder="8888..."></label><div style="align-self:end"><button class="btn" type="submit">Look up</button></div></form>`;
+  const hasDetector = "BarcodeDetector" in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  body.innerHTML = `<div class="row between"><h3 style="margin:0">Scan a barcode</h3><button class="x" type="button" id="sc-x" aria-label="Close">\u00d7</button></div>
+    ${hasDetector ? `<video id="sc-video" playsinline muted style="width:100%;max-height:46vh;border-radius:12px;background:#000;margin-top:10px"></video><p class="focus" id="sc-msg" style="margin-top:6px;font-size:12.5px">Point the camera at the barcode.</p>` : `<p class="focus" style="margin-top:6px">This browser cannot scan with the camera.</p>`}${manual}`;
+  $("#sc-x").onclick = () => dlg.close();
+  $("#scanManual").onsubmit = ev => { ev.preventDefault(); const c = $("#sc-code").value.replace(/\D/g, ""); if (c.length < 6) { toast("Type the full number under the barcode"); return; } stopScanner(); useBarcode(c); };
+  if (!dlg.open) dlg.showModal();
+  if (!hasDetector) return;
+  try {
+    const det = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] });
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    const v = $("#sc-video"); v.srcObject = scanStream; await v.play();
+    scanTimer = setInterval(async () => {
+      if (!dlg.open || v.readyState < 2) return;
+      try { const found = await det.detect(v); if (found.length && found[0].rawValue) { stopScanner(); useBarcode(found[0].rawValue); } } catch {}
+    }, 350);
+  } catch (e) { const msg = $("#sc-msg"); if (msg) msg.textContent = "Camera not available: " + (e && e.message ? e.message : "no permission") + ". Type the number instead."; }
+}
 function latinOnly(s) { return !/[^\u0000-\u024F\u1E00-\u1EFF\u2000-\u206F\u20A0-\u20CF\u2100-\u214F]/.test(s); }
 function relevantResults(term, list) {
   const words = (term || "").toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2);
