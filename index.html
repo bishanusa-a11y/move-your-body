@@ -2022,12 +2022,19 @@ function ageYears() { const b = parseISO(state.settings.birth || "1985-03-15"); 
 function kcalTarget() {
   const s = state.settings; const w = (latest("weight") || {}).weight || s.startWeight;
   const bmr = 10 * w + 6.25 * s.heightCm - 5 * ageYears() - 161;       // Mifflin-St Jeor, female
-  const tdee = Math.round(bmr * 1.5);                                      // 5 sessions a week
+  const tdee = Math.round(bmr * 1.2);                                      // everyday life only: workouts and steps are added back on the day
   const inRange = w <= s.targetHigh;
   const auto = inRange ? tdee : Math.max(1200, tdee - 350);
   return { bmr: Math.round(bmr), tdee, target: s.kcalTarget > 0 ? s.kcalTarget : auto, auto, inRange, protein: Math.round(w * 1.6) };
 }
 function foodDay(iso) { return state.food[iso] || []; }
+// Calories burned on a given day: today from the live ticks, earlier days from what was logged, plus walking from steps.
+function burnedFor(iso) {
+  if (iso === todayISO()) return burnedToday().total;
+  let k = 0;
+  for (const [id, part] of Object.entries(dayParts(iso))) { k += part.kcal || (id !== "plan" && sessionById(id) ? sessionKcalEstimate(sessionById(id)) : 0); }
+  return Math.round(k + (state.steps[iso] || 0) * bodyKg() * 0.00038);
+}
 function pruneFood() { const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 400); const c = cutoff.getFullYear()+"-"+String(cutoff.getMonth()+1).padStart(2,"0")+"-"+String(cutoff.getDate()).padStart(2,"0"); for (const k of Object.keys(state.food)) if (k < c) delete state.food[k]; }
 let foodDate = todayISO();
 let shot = null;        // { thumb, blob, busy, msg } — the photo being read right now
@@ -2041,22 +2048,23 @@ function renderFood() {
   const ldls = items.map(i => ldlCheck(i.name, i.chol)), ldlHigh = ldls.filter(l => l && l.level === "high").length, ldlMod = ldls.filter(l => l && l.level === "mod").length, ldlGood = ldls.filter(l => l && l.level === "good").length;
   const ldlDay = ldlHigh >= 2 ? "high" : ldlHigh === 1 || ldlMod >= 3 ? "mod" : "low";
   const fats = items.map(itemFat), fat = r1(fats.reduce((a,v) => a + (v||0), 0)), fatUnknown = fats.filter(v => v == null).length, fatGoal = fatTarget();
-  const left = K.target - eaten; const pct = Math.min(1, eaten / K.target); const r = 38, C = 2 * Math.PI * r;
+  const burned = burnedFor(iso), allow = K.target + burned;   // what she may eat today: the base target plus what she burned
+  const left = allow - eaten; const pct = Math.min(1, eaten / allow); const r = 38, C = 2 * Math.PI * r;
   const highs = items.filter(i => i.hist === "high").length, mods = items.filter(i => i.hist === "mod").length;
   const hcls = h => h === "high" ? "bad" : h === "mod" ? "warn" : "good"; const hlbl = h => h === "high" ? "high histamine" : h === "mod" ? "moderate" : "low";
-  let html = `<div class="card lift"><div class="row between"><div><div class="eyebrow">Calories · ${iso === todayISO() ? "today" : fmtShort(iso)}</div><h2>${eaten.toLocaleString()} <small style="font-family:var(--body);font-size:14px;font-weight:600;color:var(--ink2)">of ${K.target.toLocaleString()} kcal</small></h2></div>
+  let html = `<div class="card lift"><div class="row between"><div><div class="eyebrow">Calories · ${iso === todayISO() ? "today" : fmtShort(iso)}</div><h2>${eaten.toLocaleString()} <small style="font-family:var(--body);font-size:14px;font-weight:600;color:var(--ink2)">of ${allow.toLocaleString()} kcal</small></h2></div>
       <div class="row"><button class="btn sm" id="fd-prev" aria-label="Previous day">‹</button><input type="date" id="fd-date" class="btn sm" value="${iso}" max="${todayISO()}" style="padding:5px 8px"><button class="btn sm" id="fd-next" aria-label="Next day" ${iso >= todayISO() ? "disabled" : ""}>›</button></div></div>
     ${iso !== todayISO() ? `<div class="row between" style="margin-top:10px;background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:8px 12px"><span style="font-size:13px;font-weight:600">You are looking at ${fmtShort(iso)}, not today.</span><button class="btn sm" type="button" id="fd-today">Back to today</button></div>` : ""}
-    <div class="kring" style="margin-top:12px"><svg viewBox="0 0 92 92" role="img" aria-label="Calories eaten"><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="9"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="${eaten > K.target ? "var(--warn)" : "var(--accent)"}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}" transform="rotate(-90 46 46)"/><text x="46" y="51" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--ink);font-family:var(--display)">${Math.round(pct*100)}%</text></svg>
+    <div class="kring" style="margin-top:12px"><svg viewBox="0 0 92 92" role="img" aria-label="Calories eaten"><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="9"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="${eaten > allow ? "var(--warn)" : "var(--accent)"}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}" transform="rotate(-90 46 46)"/><text x="46" y="51" text-anchor="middle" style="font-size:15px;font-weight:800;fill:var(--ink);font-family:var(--display)">${Math.round(pct*100)}%</text></svg>
       <div><div class="big num ${left < 0 ? "up" : ""}">${left >= 0 ? left.toLocaleString() : "+" + Math.abs(left).toLocaleString()}<small> kcal ${left >= 0 ? "left" : "over"}</small></div>
-        <div class="focus" style="font-size:12px">${state.settings.kcalTarget > 0 ? "Your own target" : `Auto target: ${K.bmr.toLocaleString()} resting \u00d7 1.5 training${K.inRange ? "" : " \u2212 350"}${latest("weight") ? "" : ", from your start weight"}`} \u00b7 change in Log</div>
+        <div class="focus" style="font-size:12px">${state.settings.kcalTarget > 0 ? "Your target " + K.target.toLocaleString() : "Base " + K.target.toLocaleString()}${burned ? ` + ${burned.toLocaleString()} burned` : ""}${state.settings.kcalTarget > 0 ? "" : ` \u00b7 ${K.bmr.toLocaleString()} resting \u00d7 1.2${K.inRange ? "" : " \u2212 350"}`} \u00b7 change in Log</div>
         </div></div></div>`;
 
   // The day's summary: what was eaten, grouped by meal, with each meal's share of the day.
   const mealTotals = MEALS.map(m => ({ m, items: items.filter(i => i.meal === m) }))
     .map(x => ({ ...x, kcal: x.items.reduce((a,i) => a + (i.kcal||0), 0), prot: x.items.reduce((a,i) => a + (i.protein||0), 0) }));
   const biggest = Math.max(1, ...mealTotals.map(x => x.kcal));
-  const overBy = eaten - K.target;
+  const overBy = eaten - allow;
   html += `<div class="card lift"><div class="row between"><h3>${iso === todayISO() ? "What you ate today" : "What you ate on " + fmtShort(iso)}</h3><span class="chip num">${items.length} item${items.length === 1 ? "" : "s"}</span></div>`;
   if (!items.length) {
     // Standing on an empty day while another day has food is confusing — say where it is.
@@ -2078,7 +2086,7 @@ function renderFood() {
       <div><span>${overBy > 0 ? "Over by" : "Still left"}</span><b class="num ${overBy > 0 ? "up" : "down"}">${Math.abs(overBy).toLocaleString()} kcal</b></div>
       <div><span>Protein</span><b class="num">${Math.round(prot)} of ${K.protein} g</b></div>
       <div><span>Fat</span><b class="num ${fat > fatGoal ? "up" : ""}">${Math.round(fat)} of ${fatGoal} g</b></div>
-      ${iso === todayISO() ? `<div><span>Burned today</span><b class="num">${burnedToday().total.toLocaleString()} kcal</b></div><div><span>Net</span><b class="num">${(eaten - burnedToday().total).toLocaleString()} kcal</b></div>` : ""}
+      <div><span>Burned${iso === todayISO() ? " today" : ""}</span><b class="num">${burned.toLocaleString()} kcal</b></div><div><span>Net</span><b class="num">${(eaten - burned).toLocaleString()} kcal</b></div>
       <div><span>Cholesterol</span><b class="num ${chol > cholLimit ? "up" : ""}">${Math.round(chol)} of ${cholLimit} mg</b></div>
       ${drinkTotals(items).n ? `<div><span>Alcohol</span><b class="num">${drinkTotals(items).kcal.toLocaleString()} kcal</b></div><div><span>Standard drinks</span><b class="num ${drinkTotals(items).std > 2 ? "up" : ""}">${drinkTotals(items).std}</b></div>` : ""}
       <div><span>Bad cholesterol</span><b class="num ${ldlDay === "high" ? "up" : ldlDay === "low" ? "down" : ""}">${ldlDay === "high" ? "High" : ldlDay === "mod" ? "Medium" : "Low"}</b></div>
@@ -2147,7 +2155,7 @@ function renderFood() {
         </div>`;
     } else photoPanel = null;
   }
-  html += `<div class="card"><div class="row between"><h3>Last 14 days</h3><span class="chip">target ${K.target.toLocaleString()} kcal</span></div><div class="chart-wrap" id="chartKcal" style="margin-top:8px"></div><div class="legend"><span><i></i>kcal eaten</span><span><i class="proj"></i>target</span></div></div>`;
+  html += `<div class="card"><div class="row between"><h3>Last 14 days</h3><span class="chip">base ${K.target.toLocaleString()} kcal</span></div><div class="chart-wrap" id="chartKcal" style="margin-top:8px"></div><div class="legend"><span><i></i>kcal eaten</span><span><i class="proj"></i>target</span></div></div>`;
 
   html += `<div class="card"><h3>High-histamine foods by cuisine</h3><p class="focus" style="margin-top:4px">A guide to the usual suspects, not medical advice.</p>
     <input type="search" id="cz-search" class="btn" style="width:100%;margin-top:10px;text-align:left;font-weight:500" placeholder="Search a food or cuisine, e.g. kimchi, prawns, Sri Lankan">
