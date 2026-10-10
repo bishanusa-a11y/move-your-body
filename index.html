@@ -394,7 +394,7 @@ td .del:hover{color:var(--accent);background:var(--accent-soft)}
 
 <script>
 /* ---------- constants & plan ---------- */
-const DEFAULT_SETTINGS = { startWeight: 55.0, targetLow: 50, targetHigh: 51, heightCm: 158, unit: "in", inchGoal: 1.5, stepGoal: 8000, kcalTarget: 0, birth: "1985-03-15", cholLimit: 300, fatTarget: 0, drinkMax: 8, drinkDays: 3, drinkSince: "2026-09-28" };
+const DEFAULT_SETTINGS = { startWeight: 55.0, targetLow: 50, targetHigh: 51, heightCm: 158, unit: "in", inchGoal: 1.5, stepGoal: 8000, kcalTarget: 0, birth: "1985-03-15", cholLimit: 300, fatTarget: 0, drinkMax: 8, drinkDays: 3, drinkSince: "2026-09-28", watch: ["milk", "mushroom", "wheat", "carrot", "buckwheat", "banana", "corn", "chicken", "clam", "scallop", "chestnut", "oyster", "citrus", "orange", "lemon"], feel: {} };
 const DOW = ["sun","mon","tue","wed","thu","fri","sat"];
 const DOW_LABEL = {mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
 const yt = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
@@ -1607,6 +1607,8 @@ function renderProgress() {
   <div class="card"><div class="row between"><h3>Steps</h3><span class="chip">last 14 days</span></div><div class="chart-wrap" id="chartSteps" style="margin-top:8px"></div>
     <div class="legend"><span><i></i>steps a day</span><span><i class="proj"></i>goal ${(s.stepGoal||8000).toLocaleString()}</span></div></div>
   <div class="card">${drinkGoalHTML()}${drinkYearHTML()}</div>
+  ${(() => { const W = watchStats(); if (!W.rows.length) return ""; return `<div class="card"><div class="row between"><h3>Watch list</h3><span class="chip num">${W.allBad} of ${W.allNoted} noted days with symptoms</span></div>
+    <div class="tbl" style="margin-top:8px"><table><thead><tr><th>Food</th><th>Days eaten</th><th>Noted</th><th>With symptoms</th></tr></thead><tbody>${W.rows.map(r => `<tr><td>${esc(r.w)}</td><td class="num">${r.days}</td><td class="num">${r.noted}</td><td class="num ${r.noted >= 3 && r.bad / r.noted >= 0.6 ? "up" : ""}">${r.noted ? r.bad + " (" + Math.round(r.bad / r.noted * 100) + "%)" : "\u2014"}</td></tr>`).join("")}</tbody></table></div></div>`; })()}
   <div class="card"><h3>All entries</h3><div class="tbl" style="margin-top:8px">${es.length ? `<table><thead><tr><th>Date</th><th>kg</th><th>Arm</th><th>Thigh</th><th>Belly</th><th>Waist</th><th>Hips</th><th></th></tr></thead><tbody>` +
     [...es].reverse().map(e => `<tr><td>${fmtShort(e.date)}${e.note ? `<div class="tip" style="font-size:11px;color:var(--muted);white-space:normal">${esc(e.note)}</div>` : ""}</td><td class="num">${e.weight != null ? e.weight.toFixed(1) : "—"}</td><td class="num">${e.arm != null ? conv(e.arm).toFixed(1) : "—"}</td><td class="num">${e.thigh != null ? conv(e.thigh).toFixed(1) : "—"}</td><td class="num">${e.belly != null ? conv(e.belly).toFixed(1) : "—"}</td><td class="num">${e.waist != null ? conv(e.waist).toFixed(1) : "—"}</td><td class="num">${e.hips != null ? conv(e.hips).toFixed(1) : "—"}</td><td style="white-space:nowrap"><button class="del" data-edit="${e.id}" aria-label="Edit entry">\u270e</button><button class="del" data-del="${e.id}" aria-label="Delete entry">✕</button></td></tr>`).join("") + `</tbody></table>` : `<div class="empty">No entries yet. Add one on the Log screen.</div>`}</div></div>`;
   $("#screen-progress").innerHTML = html;
@@ -2090,6 +2092,22 @@ function ldlCheck(name, cholMg) {
 }
 const ldlCls = l => l === "high" ? "bad" : l === "mod" ? "warn" : "good";
 const ldlLbl = l => l === "high" ? "bad for cholesterol" : l === "mod" ? "some cholesterol" : "good fats";
+// Watch list: foods she wants to keep an eye on (from her IgG panel). Matched on the food's name.
+const FEELINGS = ["Fine", "Bloated", "Stomach", "Skin", "Headache", "Tired"];
+function watchHit(name) { const n = (name || "").toLowerCase(); for (const w of state.settings.watch || []) { const k = w.trim().toLowerCase(); if (k && n.includes(k)) return w.trim(); } return null; }
+const watchChip = name => { const w = watchHit(name); return w ? `<span class="chip warn" title="on your watch list">watch: ${esc(w)}</span>` : ""; };
+// For each watched food: days it was eaten, and how many of those days got a symptom noted.
+function watchStats() {
+  const feel = state.settings.feel || {}; const out = [];
+  for (const w of state.settings.watch || []) {
+    const k = w.trim().toLowerCase(); if (!k) continue;
+    const days = Object.keys(state.food).filter(iso => (state.food[iso] || []).some(i => (i.name || "").toLowerCase().includes(k)));
+    const noted = days.filter(iso => feel[iso]), bad = days.filter(iso => feel[iso] && feel[iso] !== "Fine");
+    out.push({ w: w.trim(), days: days.length, noted: noted.length, bad: bad.length });
+  }
+  const allNoted = Object.keys(feel).filter(iso => state.food[iso]), allBad = allNoted.filter(iso => feel[iso] !== "Fine");
+  return { rows: out.sort((a, b) => b.days - a.days), allNoted: allNoted.length, allBad: allBad.length };
+}
 function ldlChip(name, cholMg) { const L = ldlCheck(name, cholMg); return L ? `<span class="chip ${ldlCls(L.level)}" title="${esc(L.why)}">${ldlLbl(L.level)}</span>` : ""; }
 function histCheck(name) {
   const n = (name || "").toLowerCase(); if (!n.trim()) return null;
@@ -2175,7 +2193,7 @@ function renderFood() {
     for (const { m, items: mi, kcal: mk, prot: mp } of mealTotals) {
       if (!mi.length) continue;
       html += `<div class="meal-h">${m} · ${mk.toLocaleString()} kcal${mp ? " · " + Math.round(mp) + " g protein" : ""}</div><ul class="food">`
-        + mi.map(i => `<li class="edit ${i.photo && state.photos[i.photo] ? "haspic" : ""}">${i.photo && state.photos[i.photo] ? `<img class="thumb" src="${state.photos[i.photo].d}" alt="">` : ""}<div><div class="n">${esc(i.name)}${i.qty && i.qty !== 1 ? `<span class="q">× ${i.qty}</span>` : ""}</div>${i.hist ? `<div class="why"><span class="chip ${hcls(i.hist)}">${hlbl(i.hist)}</span> ${esc(i.why||"")}</div>` : ""}${ldlChip(i.name, i.chol) ? `<div class="why" style="margin-top:3px">${ldlChip(i.name, i.chol)}</div>` : ""}</div><div class="k num">${(i.kcal||0).toLocaleString()}<small> kcal</small><small class="d">${[i.protein ? Math.round(i.protein) + " g protein" : "", itemFat(i) != null ? r1(itemFat(i)) + " g fat" : "", i.chol != null ? Math.round(i.chol) + " mg chol" : ""].filter(Boolean).join(" · ")}</small></div><button class="del" data-fedit="${i.id}" aria-label="Edit ${esc(i.name)}">\u270e</button><button class="del" data-fdel="${i.id}" aria-label="Remove ${esc(i.name)}">✕</button></li>`).join("")
+        + mi.map(i => `<li class="edit ${i.photo && state.photos[i.photo] ? "haspic" : ""}">${i.photo && state.photos[i.photo] ? `<img class="thumb" src="${state.photos[i.photo].d}" alt="">` : ""}<div><div class="n">${esc(i.name)}${i.qty && i.qty !== 1 ? `<span class="q">× ${i.qty}</span>` : ""}</div>${i.hist ? `<div class="why"><span class="chip ${hcls(i.hist)}">${hlbl(i.hist)}</span> ${esc(i.why||"")}</div>` : ""}${ldlChip(i.name, i.chol) || watchChip(i.name) ? `<div class="why" style="margin-top:3px">${ldlChip(i.name, i.chol)} ${watchChip(i.name)}</div>` : ""}</div><div class="k num">${(i.kcal||0).toLocaleString()}<small> kcal</small><small class="d">${[i.protein ? Math.round(i.protein) + " g protein" : "", itemFat(i) != null ? r1(itemFat(i)) + " g fat" : "", i.chol != null ? Math.round(i.chol) + " mg chol" : ""].filter(Boolean).join(" · ")}</small></div><button class="del" data-fedit="${i.id}" aria-label="Edit ${esc(i.name)}">\u270e</button><button class="del" data-fdel="${i.id}" aria-label="Remove ${esc(i.name)}">✕</button></li>`).join("")
         + `</ul>`;
     }
     const highs = items.filter(i => i.hist === "high").length, mods = items.filter(i => i.hist === "mod").length;
@@ -2189,6 +2207,7 @@ function renderFood() {
       ${drinkTotals(items).n ? `<div><span>Alcohol</span><b class="num">${drinkTotals(items).kcal.toLocaleString()} kcal</b></div><div><span>Standard drinks</span><b class="num ${drinkTotals(items).std > 2 ? "up" : ""}">${drinkTotals(items).std}</b></div>` : ""}
       <div><span>Bad cholesterol</span><b class="num ${ldlDay === "high" ? "up" : ldlDay === "low" ? "down" : ""}">${ldlDay === "high" ? "High" : ldlDay === "mod" ? "Medium" : "Low"}</b></div>
     </div>
+    ${items.some(i => watchHit(i.name)) ? `<div class="row between" style="margin-top:10px"><span class="focus" style="font-size:13px">Watched: ${[...new Set(items.map(i => watchHit(i.name)).filter(Boolean))].map(esc).join(", ")}. How did you feel?</span><select id="fd-feel" class="btn sm"><option value="">\u2014</option>${FEELINGS.map(f => `<option ${(state.settings.feel || {})[iso] === f ? "selected" : ""}>${f}</option>`).join("")}</select></div>` : ""}
     <p class="focus" style="margin-top:10px;font-size:12.5px">${highs ? `<span class="chip bad">${highs} high histamine</span> ` : ""}${mods ? `<span class="chip warn">${mods} moderate</span> ` : ""}${!highs && !mods && items.length ? `<span class="chip good">nothing high in histamine today</span> ` : ""}${overBy > 0 ? "Over target today." : eaten < K.target * 0.6 ? "Well under target." : "On track."}</p>`;
   }
   html += `</div>`;
@@ -2319,7 +2338,7 @@ function renderFood() {
     histEl.innerHTML = `<span class="chip ${hcls(formPrefill.hist.level)}">${hlbl(formPrefill.hist.level)}</span> ${esc(formPrefill.hist.why || "")} (read from your photo)`;
     formPrefill = null;
   }
-  const showLdl = () => { const L = ldlCheck(nameEl.value, cEl.value.trim() === "" ? null : Number(cEl.value)); $("#ff-ldl").innerHTML = !nameEl.value.trim() ? "" : L ? `<span class="chip ${ldlCls(L.level)}">${ldlLbl(L.level)}</span> ${L.why} (\u201c${esc(L.hit)}\u201d)` : ""; };
+  const showLdl = () => { const L = ldlCheck(nameEl.value, cEl.value.trim() === "" ? null : Number(cEl.value)); $("#ff-ldl").innerHTML = !nameEl.value.trim() ? "" : (L ? `<span class="chip ${ldlCls(L.level)}">${ldlLbl(L.level)}</span> ${L.why} (\u201c${esc(L.hit)}\u201d) ` : "") + watchChip(nameEl.value); };
   nameEl.oninput = () => { showHist(); showPicks(); autoFill(); showLdl(); updateCompare("ff-cmp", nameEl.value); };
   cEl.addEventListener("input", showLdl); if (nameEl.value.trim()) showLdl();
   const onl = $("#ff-online"), onlRes = $("#ff-online-res");
@@ -2576,6 +2595,7 @@ If you cannot read it at all, reply {"kind":"unknown","serving":"","items":[]}`,
     toast(W.ok ? d[0] + " added \u00b7 " + d[1] + " kcal" + (d[3] === "high" ? " \u00b7 high histamine" : "") : "Over this week's limit: " + W.n + " drinks on " + W.days + " days"); renderFood();
   });
   document.querySelectorAll("[data-mydel]").forEach(b => b.onclick = () => { const r = state.recipes.find(x => x.id === b.dataset.mydel); if (!r || !confirm(`Remove \u201c${r.name}\u201d from my foods? Entries already logged stay.`)) return; state.recipes = state.recipes.filter(x => x !== r); persist("recipes"); renderFood(); });
+  const ff = $("#fd-feel"); if (ff) ff.onchange = () => { const f = { ...(state.settings.feel || {}) }; if (ff.value) f[iso] = ff.value; else delete f[iso]; state.settings.feel = f; persist("settings"); toast(ff.value ? "Noted" : "Cleared"); };
   document.querySelectorAll("[data-fedit]").forEach(b => b.onclick = () => openFoodEdit(iso, b.dataset.fedit));
   document.querySelectorAll("[data-fdel]").forEach(b => b.onclick = () => { state.food[iso] = foodDay(iso).filter(i => i.id !== b.dataset.fdel); if (!state.food[iso].length) delete state.food[iso]; persist("food"); renderFood(); });
 
@@ -3106,6 +3126,8 @@ function renderLog() {
       <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "Auto: once a day to your Mac when Tailscale is on" + (lsGet("sculpt.lastMacBackup", "") ? " \u00b7 last " + fmtShort(lsGet("sculpt.lastMacBackup", "")) : " \u00b7 none yet") : ""}</p></div>`}
     ${STATIC ? `<div class="card"><h3>Food database key</h3><p class="focus" style="margin-top:4px">Optional: a free key from api.data.gov lifts the hourly search limit.</p>
       <form class="form" id="usdaForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>USDA key<input type="text" id="s-usda" autocomplete="off" value="${esc(state.settings.usdaKey || "")}" placeholder="paste it here"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>` : ""}
+    <div class="card"><h3>Watch list</h3>
+      <form class="form" id="watchForm" style="margin-top:8px;grid-template-columns:1fr auto"><label>Foods to watch <span><small>comma separated</small></span><input type="text" id="s-watch" autocomplete="off" value="${esc((s.watch || []).join(", "))}"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>
     <div class="card"><h3>Measuring guide</h3><div class="guide" style="margin-top:10px">
       <div><b>Upper arm</b>Arm relaxed by your side, tape around the widest point between shoulder and elbow.</div>
       <div><b>Thigh</b>Standing, weight even, tape around the upper thigh just below the glute fold.</div>
@@ -3191,6 +3213,7 @@ function renderLog() {
       note.textContent = "Could not reach the Mac. It must be awake, and this phone must have Tailscale on. Then try again. (" + esc(e.message) + ")";
     } finally { dxM.disabled = false; }
   };
+  const wf = $("#watchForm"); if (wf) wf.onsubmit = ev => { ev.preventDefault(); state.settings.watch = $("#s-watch").value.split(",").map(x => x.trim()).filter(Boolean); persist("settings"); toast("Watch list saved"); renderAll(); };
   const uf = $("#usdaForm"); if (uf) uf.onsubmit = ev => { ev.preventDefault(); state.settings.usdaKey = $("#s-usda").value.trim(); persist("settings"); toast(state.settings.usdaKey ? "Key saved" : "Using the shared demo key"); };
   const pf = $("#pinForm");
   if (pf) pf.onsubmit = async ev => {
