@@ -394,7 +394,14 @@ td .del:hover{color:var(--accent);background:var(--accent-soft)}
 
 <script>
 /* ---------- constants & plan ---------- */
-const DEFAULT_SETTINGS = { startWeight: 55.0, targetLow: 50, targetHigh: 51, heightCm: 158, unit: "in", inchGoal: 1.5, stepGoal: 8000, kcalTarget: 0, birth: "1985-03-15", cholLimit: 300, fatTarget: 0, drinkMax: 8, drinkDays: 3, drinkSince: "2026-09-28", watch: ["milk", "mushroom", "wheat", "carrot", "buckwheat", "banana", "corn", "chicken", "clam", "scallop", "chestnut", "oyster", "citrus", "orange", "lemon"], feel: {} };
+const DEFAULT_SETTINGS = { startWeight: 0, targetLow: 0, targetHigh: 0, heightCm: 0, unit: "in", inchGoal: 1.5, stepGoal: 8000, kcalTarget: 0, birth: "", cholLimit: 300, fatTarget: 0, drinkMax: 8, drinkDays: 3, drinkSince: "", watch: [], feel: {}, macUrl: "", setupDone: false };
+// The first user's own profile: applied once to a copy that already holds her data, so nothing changes for her.
+const OWNER = { startWeight: 55.0, targetLow: 50, targetHigh: 51, heightCm: 158, birth: "1985-03-15", drinkSince: "2026-09-28", macUrl: "https://chews-macbook-air.tailadc994.ts.net:11000", watch: ["milk", "mushroom", "wheat", "carrot", "buckwheat", "banana", "corn", "chicken", "clam", "scallop", "chestnut", "oyster", "citrus", "orange", "lemon"] };
+function isOwnerData() { return state.mywork.length > 0 || Object.keys(state.sessions).length > 0 || state.entries.length > 0; }
+function migrateOwner() {
+  const s = state.settings; if (s.setupDone) return;
+  if (isOwnerData() || s.heightCm === 158) { for (const [k, v] of Object.entries(OWNER)) if (s[k] == null || s[k] === "" || s[k] === 0 || (Array.isArray(s[k]) && !s[k].length)) s[k] = Array.isArray(v) ? [...v] : v; s.setupDone = true; persist("settings"); }
+};
 const DOW = ["sun","mon","tue","wed","thu","fri","sat"];
 const DOW_LABEL = {mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
 const yt = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
@@ -823,6 +830,7 @@ function applyRemote(d) {
   if (d.recipes && Array.isArray(d.recipes.list)) { state.recipes = d.recipes.list; lsSet("sculpt.recipes", d.recipes); }
   if (d.routines && Array.isArray(d.routines.list)) { state.routines = d.routines.list; lsSet("sculpt.routines", d.routines); }
   if (d.settings && Object.keys(d.settings).length) { state.settings = {...DEFAULT_SETTINGS, ...d.settings}; lsSet("sculpt.settings", state.settings); }
+  migrateOwner();
   renderAllSafe();
 }
 async function connectApi() {
@@ -863,7 +871,7 @@ async function connectDb() {
   db.doc("tracker/picks").onSnapshot(snap => { if (snap.exists) { const d = snap.data(); if (d.days) { state.picks = {...d.days}; lsSet("sculpt.picks", {days: state.picks}); } } renderAllSafe(); }, onErr);
   db.doc("tracker/routines").onSnapshot(snap => { if (snap.exists) { const d = snap.data(); if (Array.isArray(d.list)) { state.routines = d.list; lsSet("sculpt.routines", { list: d.list }); } } renderAllSafe(); }, onErr);
   db.doc("tracker/recipes").onSnapshot(snap => { if (snap.exists) { const d = snap.data(); if (Array.isArray(d.list)) { state.recipes = d.list; lsSet("sculpt.recipes", { list: d.list }); } } renderAllSafe(); }, onErr);
-  db.doc("tracker/settings").onSnapshot(snap => { if (snap.exists) { state.settings = {...DEFAULT_SETTINGS, ...snap.data()}; lsSet("sculpt.settings", state.settings); } renderAllSafe(); }, onErr);
+  db.doc("tracker/settings").onSnapshot(snap => { if (snap.exists) { state.settings = {...DEFAULT_SETTINGS, ...snap.data()}; lsSet("sculpt.settings", state.settings); } migrateOwner(); renderAllSafe(); }, onErr);
 }
 
 /* ---------- derived numbers ---------- */
@@ -894,7 +902,7 @@ function projection() {
   return { date: d, weeks, basis };
 }
 /* ---------- calories burned: MET estimates ---------- */
-function bodyKg() { return (latest("weight") || {}).weight || state.settings.startWeight || 55; }
+function bodyKg() { return (latest("weight") || {}).weight || state.settings.startWeight || 60; }
 // Rough intensity per move (MET). Light-weight circuits sit around 4-5; jumping work near 8; a treadmill run near 9.
 // Ad-hoc cardio logged on Today: [label, MET]. Minutes x MET x body weight gives the estimate.
 const CARDIO = [["Treadmill run", 9], ["Treadmill walk", 4], ["Incline walk", 6], ["Outdoor run", 9.5], ["Outdoor walk", 4], ["Cycling", 6.5], ["Swimming", 7], ["Stairs", 8]];
@@ -1054,11 +1062,11 @@ function weekSessions() {
 /* ---------- render: strip ---------- */
 function renderStrip() {
   const s = state.settings, S = summary();
-  const bmi = S.cur != null ? S.cur / Math.pow(s.heightCm/100, 2) : null;
+  const bmi = S.cur != null && s.heightCm > 0 ? S.cur / Math.pow(s.heightCm/100, 2) : null;
   const cell = (label, val, unit, desc, cls) => `<div><div class="eyebrow">${label}</div><div class="v num ${cls||""}">${val}<small>${unit||""}</small></div><div class="d">${desc}</div></div>`;
   $("#strip").innerHTML =
     cell("Now", S.cur != null ? S.cur.toFixed(1) : "—", " kg", bmi ? "BMI " + bmi.toFixed(1) : "log a weigh-in") +
-    cell("Goal", s.targetLow + "–" + s.targetHigh, " kg", S.toGo != null ? (S.toGo > 0 ? S.toGo.toFixed(1) + " kg to go" : "in range ✓") : "158 cm · BMI 20") +
+    cell("Goal", s.targetLow + "–" + s.targetHigh, " kg", S.toGo != null ? (S.toGo > 0 ? S.toGo.toFixed(1) + " kg to go" : "in range ✓") : "log a weigh-in") +
     cell("Lost", S.lost != null ? fmtDelta(-S.lost).replace("−","") : "—", " kg", S.lost != null && S.lost > 0 ? "since " + fmtShort(first("weight").date) : "since start", S.lost > 0 ? "down" : "") +
     cell("Inches", (["arm","thigh","belly"].filter(f => S.m[f]).length ? fmtDelta(["arm","thigh","belly"].reduce((a,f)=> a + (S.m[f] ? S.m[f].delta : 0), 0), "") : "—"), " in", (["arm","thigh","belly"].some(f => S.m[f]) ? ["arm","thigh","belly"].filter(f => S.m[f]).map(f => f + " " + fmtDelta(S.m[f].delta, "")).join(" \u00b7 ") : "arm + thigh + belly"), (["arm","thigh","belly"].reduce((a,f)=> a + (S.m[f] ? S.m[f].delta : 0), 0) < 0 ? "down" : ""));
 }
@@ -1114,7 +1122,7 @@ function renderToday() {
   const sv = savedFor(key, iso, state.savedOffset || 0, 3);
   const hasVids = sv.length || day.videos.length;
   if (hasVids) html += `<details class="cz" id="vidDrawer" style="margin-top:12px" ${state.vidOpen ? "open" : ""}><summary>Videos for today<span class="arrow" style="color:var(--muted)">\u25be</span></summary>`;
-  if (sv.length) html += `<div class="block" style="border-top:0;margin-top:0;padding-top:0"><header><span class="t">Your Instagram saves</span><span class="m">${savedMatches(key).length} fit today</span></header>
+  if (sv.length) html += `<div class="block" style="border-top:0;margin-top:0;padding-top:0"><header><span class="t">Instagram picks</span><span class="m">${savedMatches(key).length} fit today</span></header>
       <div class="vids">${savedLinks(sv)}</div>
       ${savedMatches(key).length > 3 ? `<button class="btn ghost sm" type="button" id="svNext" style="margin-top:8px">Show others</button>` : ""}</div>`;
   if (day.videos.length) {
@@ -1491,7 +1499,7 @@ function renderPlan() {
     });
     if (k === key && doneP) html += `<div class="camerarow" style="margin-top:12px"><span class="chip good">\u2713 done today${doneP.kcal ? " \u00b7 " + doneP.kcal + " kcal" : ""}</span></div>`;
     if (savedMatches(k).length || d.videos.length) html += `<details class="cz" style="margin-top:12px"><summary>Videos<span class="arrow" style="color:var(--muted)">\u25be</span></summary>`;
-    if (savedMatches(k).length) html += `<div class="block" style="border-top:0;margin-top:0;padding-top:0"><header><span class="t">Your Instagram saves</span><span class="m">${savedMatches(k).length} fit</span></header><div class="vids">${savedLinks(savedFor(k, k + "w" + Math.floor(Date.now() / 604800000), 0, 6))}</div></div>`;
+    if (savedMatches(k).length) html += `<div class="block" style="border-top:0;margin-top:0;padding-top:0"><header><span class="t">Instagram picks</span><span class="m">${savedMatches(k).length} fit</span></header><div class="vids">${savedLinks(savedFor(k, k + "w" + Math.floor(Date.now() / 604800000), 0, 6))}</div></div>`;
     if (d.videos.length) html += `<div class="block"><header><span class="t">YouTube</span><span class="m"></span></header><div class="vids">${d.videos.map(v => `<a href="${v[2]}" target="_blank" rel="noopener">${v[0]}<span class="who">${v[3]} min \u00b7 ${v[1]} \u2197</span></a>`).join("")}</div></div>`;
     if (savedMatches(k).length || d.videos.length) html += `</details>`;
     html += `</div></details>`;
@@ -1583,13 +1591,11 @@ function renderProgress() {
   const s = state.settings, S = summary(), P = projection(); const es = sortedEntries();
   const unitLbl = s.unit === "cm" ? "cm" : "in"; const conv = v => s.unit === "cm" ? inToCm(v) : v; const goalLen = conv(s.inchGoal);
   const mt = (label, f, where) => { const m = S.m[f]; if (!m) return `<div class="tile"><div class="eyebrow">${label}</div><div class="v">—</div><div class="d">${where}</div></div>`; const prog = Math.max(0, Math.min(1, -m.delta / s.inchGoal)); return `<div class="tile"><div class="eyebrow">${label}</div><div class="v num ${m.delta<0?"down":m.delta>0?"up":""}">${fmtDelta(conv(m.delta))}<small> ${unitLbl}</small></div><div class="d num">${conv(m.start).toFixed(1)} → ${conv(m.now).toFixed(1)} ${unitLbl} · goal −${goalLen.toFixed(1)}</div><div class="bar"><i style="width:${prog*100}%"></i></div></div>`; };
-  const bmiNow = S.cur != null ? S.cur / Math.pow(s.heightCm/100,2) : null; const bmiGoal = ((s.targetLow + s.targetHigh)/2) / Math.pow(s.heightCm/100,2);
+  const bmiNow = S.cur != null && s.heightCm > 0 ? S.cur / Math.pow(s.heightCm/100,2) : null; const bmiGoal = s.heightCm > 0 ? ((s.targetLow + s.targetHigh)/2) / Math.pow(s.heightCm/100,2) : 0;
   let html = `<div class="tiles">
-    <div class="tile"><div class="eyebrow">Weight</div><div class="v num ${S.lost>0?"down":""}">${S.lost != null ? fmtDelta(-S.lost) : "—"}<small> kg</small></div><div class="d num">${S.cur != null ? S.start.toFixed(1) + " → " + S.cur.toFixed(1) + " kg" : "no weigh-in yet"}</div><div class="bar"><i style="width:${S.cur != null ? Math.max(0, Math.min(1, (S.start - S.cur) / Math.max(0.1, S.start - s.targetHigh))) * 100 : 0}%"></i></div></div>
     ${mt("Upper arm","arm","measure relaxed, widest point")}
     ${mt("Thigh","thigh","measure upper thigh, standing")}
     ${mt("Lower belly","belly","2 in below the navel")}
-    <div class="tile"><div class="eyebrow">BMI</div><div class="v num">${bmiNow ? bmiNow.toFixed(1) : "—"}<small> → ${bmiGoal.toFixed(1)}</small></div><div class="d">${bmiNow == null ? "log a weigh-in" : (bmiNow >= 18.5 && bmiNow < 25 ? "in" : "outside") + " the healthy 18.5–24.9 range"}</div></div>
     <div class="tile"><div class="eyebrow">Goal date</div><div class="v" style="font-size:18px">${P ? (P.reached ? "Reached ✓" : P.date.toLocaleDateString(undefined,{month:"short",day:"numeric"})) : "—"}</div><div class="d">${P && !P.reached ? "estimate at " + P.basis : P && P.reached ? "maintain: weigh in weekly" : "needs a weigh-in"}</div></div>
     ${(() => { const wk = weekSessions(), done = wk.filter(d => state.sessions[d.iso]), mins = done.reduce((a, d) => a + (state.sessions[d.iso].minutes || 0), 0), st = wk.map(d => state.steps[d.iso]).filter(v => v != null), avg = st.length ? Math.round(st.reduce((a, b) => a + b, 0) / st.length) : null;
       return `<div class="tile"><div class="eyebrow">This week</div><div class="v num">${done.length}<small> of 5 sessions</small></div><div class="d num">${mins} min${avg != null ? " \u00b7 " + avg.toLocaleString() + " steps a day" : ""}</div><div class="bar"><i style="width:${Math.min(100, done.length / 5 * 100)}%"></i></div></div>`; })()}
@@ -2134,10 +2140,11 @@ const CUISINES = [
   ["Filipino", "<b>Watch:</b> bagoong, patis, vinegar (adobo, sinigang with tamarind), longganisa and tocino, dried fish (tuyo, daing), tomato, shrimp. <b>Safer:</b> chicken tinola with ginger and green papaya, short-simmered nilaga, plain rice, grilled chicken without vinegar marinade, fresh vegetables (ginisang gulay).", "filipino philippines pinoy"],
   ["Malaysian & Indonesian", "<b>Watch:</b> belacan and sambal, tempeh, tapai, tempoyak, kecap manis, ikan bilis, cincalok, laksa, satay peanut sauce, prawn dishes. <b>Safer:</b> nasi lemak with fresh coconut rice and cucumber, ayam goreng (fresh fried chicken), fresh vegetables with garlic, chicken soto cooked the same day, rendang made without shrimp paste.", "malaysian indonesian singaporean malay"]
 ];
-function ageYears() { const b = parseISO(state.settings.birth || "1985-03-15"); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a--; return a; }
+function ageYears() { const b = parseISO(state.settings.birth || "1990-01-01"); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t < new Date(t.getFullYear(), b.getMonth(), b.getDate())) a--; return a; }
+function hasProfile() { const s = state.settings; return s.heightCm > 0 && (s.startWeight > 0 || latest("weight")) && s.targetHigh > 0 && !!s.birth; }
 function kcalTarget() {
-  const s = state.settings; const w = (latest("weight") || {}).weight || s.startWeight;
-  const bmr = 10 * w + 6.25 * s.heightCm - 5 * ageYears() - 161;       // Mifflin-St Jeor, female
+  const s = state.settings; const w = (latest("weight") || {}).weight || s.startWeight || 55;
+  const bmr = 10 * w + 6.25 * (s.heightCm || 160) - 5 * ageYears() - 161;       // Mifflin-St Jeor, female
   const tdee = Math.round(bmr * 1.2);                                      // everyday life only: workouts and steps are added back on the day
   const inRange = w <= s.targetHigh;
   const auto = inRange ? tdee : Math.max(1200, tdee - 350);
@@ -3044,11 +3051,11 @@ function measureStatus() {
   return { last, next, due: todayISO() >= next };
 }
 function makeDump() { return { app: "Move Your Body", exported: new Date().toISOString(), entries: state.entries, sessions: state.sessions, steps: state.steps, food: state.food, swaps: state.swaps, photos: state.photos, workouts: { list: state.mywork, source: state.myworkSource }, picks: state.picks, recipes: state.recipes, routines: state.routines, settings: state.settings }; }
-function macBase() { return (state.settings.macUrl || "https://chews-macbook-air.tailadc994.ts.net:11000").replace(/\/+$/, ""); }
+function macBase() { return (state.settings.macUrl || "").replace(/\/+$/, ""); }
 // The phone app has no server of its own, so its safety copy goes to the Mac whenever the Mac can be reached
 // (Tailscale on, Mac awake). Sent as plain text so the browser needs no permission round-trip first.
 async function backupToMac(silent) {
-  if (!STATIC) return false;
+  if (!STATIC || !macBase()) return false;
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
   try {
     const r = await fetch(macBase() + "/api/backup", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify(makeDump()), signal: ctl.signal });
@@ -3060,7 +3067,7 @@ async function backupToMac(silent) {
   finally { clearTimeout(t); }
 }
 // Once a day, quietly, whenever the app is opened or brought back to the front.
-function autoBackup() { if (STATIC && lsGet("sculpt.lastMacBackup", "") !== todayISO() && (state.entries.length || Object.keys(state.food).length || Object.keys(state.sessions).length)) backupToMac(true); }
+function autoBackup() { if (STATIC && macBase() && lsGet("sculpt.lastMacBackup", "") !== todayISO() && (state.entries.length || Object.keys(state.food).length || Object.keys(state.sessions).length)) backupToMac(true); }
 let editEntry = null;   // id of the weigh-in being edited on the Log screen
 function renderLog() {
   const s = state.settings; const u = s.unit === "cm" ? "cm" : "in"; const last = sortedEntries().slice(-1)[0];
@@ -3090,6 +3097,7 @@ function renderLog() {
         <label>Inch goal per area <span><small>in</small></span><input type="number" id="s-inch" step="0.5" min="0.5" max="4" value="${s.inchGoal}"></label>
         <label>Daily step goal<input type="number" id="s-steps" step="500" min="2000" max="30000" value="${s.stepGoal || 8000}"></label>
         <label>Fat target <span><small>g a day, blank = auto</small></span><input type="number" id="s-fat" step="1" min="20" max="250" value="${s.fatTarget || ""}" placeholder="auto ${Math.round(kcalTarget().target * 0.3 / 9)}"></label>
+        <label>Date of birth<input type="date" id="s-birth" value="${s.birth || ""}"></label>
         <label>Drinks <span><small>max a week</small></span><input type="number" id="s-dmax" step="1" min="0" max="50" value="${s.drinkMax == null ? 8 : s.drinkMax}"></label>
         <label>Drinking days <span><small>max a week</small></span><input type="number" id="s-ddays" step="1" min="0" max="7" value="${s.drinkDays == null ? 3 : s.drinkDays}"></label>
         <label>Cholesterol limit <span><small>mg a day</small></span><input type="number" id="s-chol" step="10" min="50" max="1000" value="${s.cholLimit || 300}"></label>
@@ -3122,17 +3130,18 @@ function renderLog() {
     </div>
     ${framed ? "" : `<div class="card"><div class="row between"><h3>Backup</h3>${(() => { const lb = lsGet("sculpt.lastBackup", null); const days = lb ? daysBetween(lb, todayISO()) : null; return `<span class="chip ${lb && days <= 7 ? "good" : "warn"}">${lb ? (days === 0 ? "backed up today" : "last " + fmtShort(lb)) : "never backed up"}</span>`; })()}</div>
       <p class="focus" style="margin-top:4px">${STATIC ? "Stored on this phone." : ""}</p>
-      <div class="camerarow" style="margin-top:10px">${STATIC ? `<button class="btn primary" type="button" id="dx-macup">Back up to my Mac</button>` : ""}<button class="btn ${STATIC ? "" : "primary"}" type="button" id="dx-export">Back up to a file</button><button class="btn" type="button" id="dx-import">Restore from a file</button>${STATIC ? `<button class="btn" type="button" id="dx-mac">Restore from my Mac</button>` : ""}<input type="file" id="dx-file" accept="application/json,.json" hidden></div>
-      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC ? "Auto: once a day to your Mac when Tailscale is on" + (lsGet("sculpt.lastMacBackup", "") ? " \u00b7 last " + fmtShort(lsGet("sculpt.lastMacBackup", "")) : " \u00b7 none yet") : ""}</p></div>`}
+      <div class="camerarow" style="margin-top:10px">${STATIC && macBase() ? `<button class="btn primary" type="button" id="dx-macup">Back up to my Mac</button>` : ""}<button class="btn ${STATIC ? "" : "primary"}" type="button" id="dx-export">Back up to a file</button><button class="btn" type="button" id="dx-import">Restore from a file</button>${STATIC && macBase() ? `<button class="btn" type="button" id="dx-mac">Restore from my Mac</button>` : ""}<input type="file" id="dx-file" accept="application/json,.json" hidden></div>
+      <p class="focus" style="margin-top:8px;font-size:12.5px" id="dx-note">${STATIC && macBase() ? "Auto: once a day to your Mac when Tailscale is on" + (lsGet("sculpt.lastMacBackup", "") ? " \u00b7 last " + fmtShort(lsGet("sculpt.lastMacBackup", "")) : " \u00b7 none yet") : ""}</p></div>`}
     ${STATIC ? `<div class="card"><h3>Food database key</h3><p class="focus" style="margin-top:4px">Optional: a free key from api.data.gov lifts the hourly search limit.</p>
       <form class="form" id="usdaForm" style="margin-top:10px;grid-template-columns:1fr auto"><label>USDA key<input type="text" id="s-usda" autocomplete="off" value="${esc(state.settings.usdaKey || "")}" placeholder="paste it here"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>` : ""}
     <div class="card"><h3>Watch list</h3>
+      ${STATIC ? `<form class="form" id="macForm" style="margin-top:8px;grid-template-columns:1fr auto"><label>Mac backup address <span><small>blank = none</small></span><input type="url" id="s-mac" autocomplete="off" value="${esc(s.macUrl || "")}" placeholder="https://…"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form>` : ""}
       <form class="form" id="watchForm" style="margin-top:8px;grid-template-columns:1fr auto"><label>Foods to watch <span><small>comma separated</small></span><input type="text" id="s-watch" autocomplete="off" value="${esc((s.watch || []).join(", "))}"></label><div style="align-self:end"><button class="btn" type="submit">Save</button></div></form></div>
     <div class="card"><h3>Measuring guide</h3><div class="guide" style="margin-top:10px">
       <div><b>Upper arm</b>Arm relaxed by your side, tape around the widest point between shoulder and elbow.</div>
       <div><b>Thigh</b>Standing, weight even, tape around the upper thigh just below the glute fold.</div>
       <div><b>Lower belly</b>Tape 2 in (5 cm) below the navel, relaxed, at the end of a normal breath out.</div>
-      <div><b>Steps</b>Your Pixel counts them in the Fitbit app. There is no connector Claude can reach for Fitbit or Health Connect, so copy the day's total into the Today screen each evening.</div>
+      <div><b>Steps</b>Copy the day's total from your phone's step counter into Today each evening.</div>
       <div><b>When</b>Weight: morning, after the bathroom, before breakfast. Arm, thigh and belly: once a month, same time of day.</div>
     </div></div>`;
   $("#entryForm").onsubmit = ev => {
@@ -3213,6 +3222,7 @@ function renderLog() {
       note.textContent = "Could not reach the Mac. It must be awake, and this phone must have Tailscale on. Then try again. (" + esc(e.message) + ")";
     } finally { dxM.disabled = false; }
   };
+  const mf = $("#macForm"); if (mf) mf.onsubmit = ev => { ev.preventDefault(); state.settings.macUrl = $("#s-mac").value.trim(); persist("settings"); toast(state.settings.macUrl ? "Mac address saved" : "Mac backup off"); renderLog(); };
   const wf = $("#watchForm"); if (wf) wf.onsubmit = ev => { ev.preventDefault(); state.settings.watch = $("#s-watch").value.split(",").map(x => x.trim()).filter(Boolean); persist("settings"); toast("Watch list saved"); renderAll(); };
   const uf = $("#usdaForm"); if (uf) uf.onsubmit = ev => { ev.preventDefault(); state.settings.usdaKey = $("#s-usda").value.trim(); persist("settings"); toast(state.settings.usdaKey ? "Key saved" : "Using the shared demo key"); };
   const pf = $("#pinForm");
@@ -3235,7 +3245,7 @@ function renderLog() {
     if (await savePin(null, await pinDigest(cur))) { pin.required = false; pin.hash = null; pin.unlocked = true; rememberHash(null); toast("Lock turned off"); renderAll(); }
   };
   const plk = $("#p-lock"); if (plk) plk.onclick = () => lockNow();
-  $("#settingsForm").onsubmit = ev => { ev.preventDefault(); const lo = +$("#s-low").value, hi = +$("#s-high").value, h = +$("#s-height").value, ig = +$("#s-inch").value, sg = +$("#s-steps").value, kc = $("#s-kcal").value.trim() === "" ? 0 : +$("#s-kcal").value, cl = +$("#s-chol").value || 300, ft = Math.max(0, +$("#s-fat").value || 0), dm = Math.max(0, +$("#s-dmax").value || 0), dd = Math.min(7, Math.max(0, +$("#s-ddays").value || 0)); if (!(lo > 0 && hi >= lo && h > 100 && ig > 0 && sg >= 1000 && (kc === 0 || kc >= 1000))) { toast("Check the target numbers"); return; } Object.assign(state.settings, { targetLow: lo, targetHigh: hi, heightCm: h, inchGoal: ig, stepGoal: sg, kcalTarget: kc, cholLimit: cl, fatTarget: ft, drinkMax: dm, drinkDays: dd }); persist("settings"); toast("Targets saved"); renderAll(); };
+  $("#settingsForm").onsubmit = ev => { ev.preventDefault(); const lo = +$("#s-low").value, hi = +$("#s-high").value, h = +$("#s-height").value, ig = +$("#s-inch").value, sg = +$("#s-steps").value, kc = $("#s-kcal").value.trim() === "" ? 0 : +$("#s-kcal").value, cl = +$("#s-chol").value || 300, ft = Math.max(0, +$("#s-fat").value || 0), dm = Math.max(0, +$("#s-dmax").value || 0), dd = Math.min(7, Math.max(0, +$("#s-ddays").value || 0)), bd = $("#s-birth").value || state.settings.birth; if (!(lo > 0 && hi >= lo && h > 100 && ig > 0 && sg >= 1000 && (kc === 0 || kc >= 1000))) { toast("Check the target numbers"); return; } Object.assign(state.settings, { targetLow: lo, targetHigh: hi, heightCm: h, inchGoal: ig, stepGoal: sg, kcalTarget: kc, cholLimit: cl, fatTarget: ft, drinkMax: dm, drinkDays: dd, birth: bd }); persist("settings"); toast("Targets saved"); renderAll(); };
 }
 
 /* ---------- PIN lock ---------- */
@@ -3437,6 +3447,32 @@ function renderInstall() {
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredInstall = e; promptSeen = true; lsSet("sculpt.installHidden", false); renderInstall(); });
 window.addEventListener("appinstalled", () => { deferredInstall = null; lsSet("sculpt.installHidden", true); renderInstall(); toast("Added to your home screen"); });
 
+/* ---------- first run: who is this for ---------- */
+function openSetup(force) {
+  if (!force && (hasProfile() || framed)) return;
+  let dlg = $("#setupDlg");
+  if (!dlg) { document.body.insertAdjacentHTML("beforeend", `<dialog id="setupDlg"><div class="sheet" id="setupBody"></div></dialog>`); dlg = $("#setupDlg"); dlg.addEventListener("cancel", e => { if (!hasProfile()) e.preventDefault(); }); }
+  const s = state.settings;
+  $("#setupBody").innerHTML = `<h3 style="margin:0">About you</h3>
+    <form class="form" id="setupForm" style="margin-top:10px">
+      <label>Height <span><small>cm</small></span><input type="number" id="su-h" inputmode="decimal" min="120" max="220" value="${s.heightCm || ""}" required></label>
+      <label>Weight now <span><small>kg</small></span><input type="number" id="su-w" inputmode="decimal" step="0.1" min="30" max="200" value="${(latest("weight") || {}).weight || s.startWeight || ""}" required></label>
+      <label>Goal from <span><small>kg</small></span><input type="number" id="su-lo" inputmode="decimal" step="0.5" min="30" max="200" value="${s.targetLow || ""}" required></label>
+      <label>Goal to <span><small>kg</small></span><input type="number" id="su-hi" inputmode="decimal" step="0.5" min="30" max="200" value="${s.targetHigh || ""}" required></label>
+      <label>Date of birth<input type="date" id="su-b" value="${s.birth || ""}" required></label>
+      <label>Measure in<select id="su-u"><option value="in" ${s.unit !== "cm" ? "selected" : ""}>inches</option><option value="cm" ${s.unit === "cm" ? "selected" : ""}>cm</option></select></label>
+      <div class="full camerarow"><button class="btn primary" type="submit">Start</button>${hasProfile() ? `<button class="btn ghost" type="button" id="su-x">Cancel</button>` : ""}</div></form>`;
+  const sx = $("#su-x"); if (sx) sx.onclick = () => dlg.close();
+  $("#setupForm").onsubmit = ev => {
+    ev.preventDefault();
+    const h = +$("#su-h").value, w = +$("#su-w").value, lo = +$("#su-lo").value, hi = +$("#su-hi").value, b = $("#su-b").value;
+    if (!(h > 100 && w > 25 && lo > 25 && hi >= lo && b)) { toast("Check the numbers"); return; }
+    Object.assign(state.settings, { heightCm: h, startWeight: w, targetLow: lo, targetHigh: hi, birth: b, unit: $("#su-u").value, drinkSince: state.settings.drinkSince || isoOf(mondayOf(new Date())), setupDone: true });
+    if (!state.entries.length) state.entries.push({ id: uid(), date: todayISO(), weight: w, arm: null, thigh: null, belly: null, waist: null, hips: null, note: "start" });
+    persist("settings"); persist("entries"); dlg.close(); toast("Set. Change these any time under Log"); renderAll();
+  };
+  if (!dlg.open) dlg.showModal();
+}
 /* ---------- tabs & boot ---------- */
 function showTab(t) {
   state.tab = t; lsSet("sculpt.tab", t);
@@ -3463,7 +3499,7 @@ $("#todayLabel").textContent = fmtLong(new Date());
 loadPinState().then(() => { renderLock(); if (!pin.required || pin.unlocked) renderAll(); });
 checkSW().then(() => renderInstall());
 setTimeout(() => checkSW().then(renderInstall), 2500);   // give the browser a moment to offer the install prompt
-loadLocal(); renderAll(); showTab(["today","plan","progress","food","log"].includes(state.tab) ? state.tab : "today");
+loadLocal(); migrateOwner(); renderAll(); showTab(["today","plan","progress","food","log"].includes(state.tab) ? state.tab : "today");
 let rt, lastW = window.innerWidth;
 window.addEventListener("resize", () => {
   // The on-screen keyboard changes the height only. Re-rendering then would destroy the
@@ -3475,6 +3511,7 @@ window.addEventListener("resize", () => {
   rt = setTimeout(() => { if (typingNow()) return; if (state.tab === "progress") renderProgress(); if (state.tab === "food") renderFood(); }, 200);
 });
 setTimeout(autoBackup, 5000);
+setTimeout(() => openSetup(false), STATIC ? 800 : 3000);   // give a synced copy time to receive its settings first
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") setTimeout(autoBackup, 1500); });
 connectDb(); connectSample(); checkServerVision();
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
